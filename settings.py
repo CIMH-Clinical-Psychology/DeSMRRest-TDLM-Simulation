@@ -126,20 +126,31 @@ data_dir = ""  # enter directory here where the data has been stored
 
 # machine specific configuration overwrites general directory structure
 if username == 'simon.kern' and host=='zislrds0035.zi.local':  # simons VM
-    cache_dir = f'{home}/Desktop/joblib/'
+    cache_dir = f'/data/joblib-resting-state/'
     data_dir = '/zi/flstorage/group_klips/data/data/Simon/DeSMRRest/upload/'
-    
+    plot_dir = f'{home}/Nextcloud/ZI/2023.10 TDLMSimulation/DeSMRRest-RestingState/plots'
+
 elif username == 'simon.kern' and host=='5cd320lfh8':
-    cache_dir = f'{home}/Desktop/joblib/'
+    cache_dir = f'{home}/Desktop/joblib-resting-state/'
     data_dir = "W:/group_klips/data/data/Simon/DeSMRRest/upload/"
 
+
+elif username == 'simon' and host in ('thinkpad-simon', 'desktop-dakomj2'):
+    cache_dir = f'z:/joblib-simulation/'
+    data_dir = "z:"
+else:
+    warnings.warn('No user specific settings found in settings.py')
+
+os.environ['JOBLIB_CACHE_DIR'] = cache_dir
+
+#%% checks for stuff
 if 'cache_dir' not in locals():
     cache_dir = f"{data_dir}/cache/"  # used for caching
 if 'plot_dir' not in locals():
     plot_dir = f"{data_dir}/plots/"  # plots will be stored here
 if 'log_dir' not in locals():
     log_dir = f"{data_dir}/plots/logs/"  # log files will be created here
-    
+
 
 results_dir = os.path.expanduser(f"{data_dir}/results/")  # final results here
 

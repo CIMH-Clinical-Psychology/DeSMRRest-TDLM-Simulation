@@ -1,0 +1,14 @@
+autoreject==0.4.3
+compress_pickle==2.1.0
+joblib==1.4.0
+matplotlib==3.8.4
+mne==1.7.0
+numpy==1.24.4
+numpyencoder==0.3.0
+pandas==1.5.3
+python_picard==0.7
+scikit_learn==1.4.2
+scipy==1.10.1
+seaborn==0.13.2
+tqdm==4.66.2
+
