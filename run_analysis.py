@@ -20,6 +20,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
 import mne
+import mat73
 from meg_utils import plotting
 
 from mne.stats import permutation_cluster_1samp_test
@@ -33,6 +34,8 @@ from utils import plot_correlation, zscore_multiaxis
 from scipy.stats import ttest_rel
 from scipy import stats
 from scipy.ndimage import gaussian_filter
+from statsmodels.stats.multitest import multipletests
+
 zscore_multiaxis = lambda x, axes: stats.zscore(x, axes, nan_policy='omit')
 # zscore_multiaxis = lambda x, y: x
 utils.lowpriority()  # make sure not to clog CPU on multi-user systems
@@ -231,6 +234,9 @@ df_reg = pd.DataFrame()
 
 clf_x = sklearn.base.clone(clf)
 
+# we originally did this over a much larger selection of C, but to reduce
+# computation time, we select this subrange now. Most C outside the range were
+# useless.
 Cs = np.logspace(-1.2, 2.5, 25, dtype=np.float16)
 
 for C in tqdm(Cs):
@@ -262,7 +268,7 @@ best_C
 
 ax.set_xlabel('L1 regularization (C), logscale')
 ax.set_ylabel('Mean accuracy between 150-250 ms after stim onset')
-ax.set_title(f'Best decoding at L1 C={best_C:.1f}')
+ax.set_title(f'Best decoding at L1 ~C={best_C:.1f}')
 plt.pause(0.1)
 plt.tight_layout()
 utils.savefig(fig, 'supplement/regularization_C_crossval.png')
@@ -452,8 +458,8 @@ fig.savefig(results_dir + "/classifier-transfer.png")
 
 # #TODO fix this
 tp = 31#np.mean(list(best_tp.values())).astype(int)
-# C=9
-# clf.set_params(C=C)
+
+clf.set_params(C=best_C)
 # put forward and backward sequenceness per subject for RS1/RS2 in these arrays
 rs1_sf = np.full([len(subjects_incl), n_shuf, max_lag+1], np.nan)
 rs1_sb = np.full([len(subjects_incl), n_shuf, max_lag+1], np.nan)
@@ -528,8 +534,34 @@ for s, subj in enumerate(subjects_incl):
                                         ignore_index=True)
 compress_pickle.dump(df_sequenceness, pkl_sequencenes)
 
+
+#%% RS1RS2 seq in one plot
+
+df_rs1rs2 = pd.DataFrame()
+fig, axs = plt.subplots(2, 2, figsize=[12, 12])
+axs = axs.flatten()
+for i, sx in enumerate([rs1_sf, rs2_sf, rs1_sb, rs2_sb]):
+    condition = ['forward control', 'backward post-learn', 'backward control', 'backward post-learn'][i]
+    sx = zscore_multiaxis(sx[:, :, :], axes=zscore_axes)
+    seq = sx[:, 0, :].ravel()
+    time_lags = list(range(0, sx.shape[-1]*10, 10)) * len(subjects_incl)
+    df_tmp = pd.DataFrame({'subject': np.repeat(subjects_incl, sx.shape[-1]),
+                           'sequenceness': seq,
+                           'time lag': time_lags})
+    ax = axs[i]
+    sns.lineplot(df_tmp, x='time lag', y='sequenceness', hue='subject', ax=ax,
+                 palette=hues, legend=False)
+    ax.set_title(f'{condition}')
+
+fig.suptitle('Individual Sequenceness Curves of Participants')
+utils.normalize_lims(axs)
+utils.savefig(fig, 'supplement/sequenceness-individualplots.png')
+
+#%% RS1 and RS2 plots
 # plotting of sequenceness curves
-fig, axs = plt.subplot_mosaic('11AB\n22CD', figsize=[16, 8])
+fig, axs = plt.subplot_mosaic([['1', '1', 'D1', 'D1'],
+                               ['2', '2', 'D2', 'D2'],
+                               ['A', 'B', 'C', 'D']], figsize=[14, 14])
 
 perf_test = {subj: get_performance(subj=subj, which="test") for subj in subjects_incl}
 
@@ -581,35 +613,286 @@ for i, direction in enumerate(['forward', 'backward']):
 
     ax.text(ax.get_xlim()[1], .5, f'r={r1:.2f} p={pval1:.3f}', horizontalalignment='right')
 
-utils.normalize_lims([ax for desc, ax in axs.items() if not desc.isnumeric()])
+utils.normalize_lims([ax for desc, ax in axs.items() if not desc.isnumeric() and len(desc)==1])
 
 # fig.suptitle('Sequenceness Analysis Results')
 plt.pause(0.1)
 fig.tight_layout()
+# utils.savefig(fig, f'figure/sequenceness_rs.png')
+
+#%% RS2-RS1 post cluster permutation
+from mne.stats import permutation_cluster_1samp_test
+fontdict ={ 'fontsize': 18, 'horizontalalignment':'center'}
+
+rs_pre_sf = rs1_sf[:, 0, 1:]
+rs_pre_sb = rs1_sb[:, 0, 1:]
+rs_post_sf = rs2_sf[:, 0, 1:]
+rs_post_sb = rs2_sb[:, 0, 1:]
+
+n_subj = len(rs_pre_sf)
+
+# create differences between post and pre
+diff_sf =  rs_post_sf - rs_pre_sf
+diff_sb =  rs_post_sb - rs_pre_sb
+
+
+df_diff = pd.DataFrame()
+for lag in range( max_lag):
+    df_diff = pd.concat([df_diff,
+                         pd.DataFrame({'participant': list(range(n_subj))*2,
+                         'direction': ['forward'] * n_subj + ['backward']*n_subj,
+                         'timelag': 10+lag*10,
+                         'difference (u.u.)': list(diff_sf[:, lag]) + list(diff_sb[:, lag])
+                                       })],
+                         ignore_index=True)
+
+
+for i, direction in enumerate(['forward', 'backward']):
+    ax = axs[f'D{i+1}']
+    ax.clear()
+    ax.hlines(0, 0, max_lag*10+10, color='gray', linestyle='--', alpha=0.2)
+    sns.lineplot(df_diff[df_diff.direction==direction], x='timelag', y='difference (u.u.)', ax=ax,
+                 color=sns.color_palette()[i+1], err_style="bars", errorbar=("se", 2),
+                 err_kws={'fmt':'o-', 'capsize':5})
+    ax.set_ylim([x*1.5 for x in ax.get_ylim()])
+    ax.set_title(f'{direction} difference post-pre')
+    ax.legend(['_', 'diff', 'SE'], loc='lower right')
+
+utils.normalize_lims( [axs[f'D1'], axs[f'D2']])
+
+p_fwd = stats.ttest_rel(rs_pre_sf, rs_post_sf, axis=0, nan_policy='omit')
+p_bkw = stats.ttest_rel(rs_pre_sb, rs_post_sb, axis=0, nan_policy='omit')
+
+_, p_fwd_corr, _, _ = multipletests(p_fwd.pvalue, method='fdr_bh')
+_, p_bkw_corr, _, _ = multipletests(p_bkw.pvalue, method='fdr_bh')
+
+
+for idx in np.where(p_fwd.pvalue<0.05)[0]:
+    # axs[f'D1'].text(idx*10+10, axs[f'D1'].get_ylim()[1]*0.75,'(*)', fontdict=fontdict)
+    print((idx+1)*10, f'{p_fwd.pvalue[idx]=:.3f} {p_fwd_corr[idx]=:.3f}')
+
+for idx in np.where(p_bkw.pvalue<0.05)[0]:
+    # axs[f'D2'].text(idx*10+10, axs[f'D2'].get_ylim()[1]*0.75,'(*)', fontdict=fontdict)
+    print((idx+1)*10, f'{p_bkw.pvalue[idx]=:.3f} {p_bkw_corr[idx]=:.3f}')
+
+plt.pause(0.1)
+fig.tight_layout()
+
+for i, diff in enumerate([diff_sf, diff_sb]):
+    t_thresh = stats.distributions.t.ppf(1 - 0.05, df=len(diff) - 1)
+    t_clust, clusters1, p_values1, H0 = permutation_cluster_1samp_test(
+        diff,
+        tail=1,
+        n_jobs=None,
+        threshold=t_thresh,
+        adjacency=None,
+        n_permutations=10000,
+        out_type="mask",
+    )
+    print(clusters1, p_values1)
+
 utils.savefig(fig, f'figure/sequenceness_rs.png')
 
-#%% RS1RS2 seq in one plot
 
-df_rs1rs2 = pd.DataFrame()
-fig, axs = plt.subplots(2, 2, figsize=[12, 12])
-axs = axs.flatten()
-for i, sx in enumerate([rs1_sf, rs2_sf, rs1_sb, rs2_sb]):
-    condition = ['forward control', 'backward post-learn', 'backward control', 'backward post-learn'][i]
-    sx = zscore_multiaxis(sx[:, :, :], axes=zscore_axes)
-    seq = sx[:, 0, :].ravel()
-    time_lags = list(range(0, sx.shape[-1]*10, 10)) * len(subjects_incl)
-    df_tmp = pd.DataFrame({'subject': np.repeat(subjects_incl, sx.shape[-1]),
-                           'sequenceness': seq,
-                           'time lag': time_lags})
-    ax = axs[i]
-    sns.lineplot(df_tmp, x='time lag', y='sequenceness', hue='subject', ax=ax,
-                 palette=hues, legend=False)
-    ax.set_title(f'{condition}')
 
-fig.suptitle('Individual Sequenceness Curves of Participants')
-utils.normalize_lims(axs)
-utils.savefig(fig, 'supplement/sequenceness-individualplots.png')
+#%% claude stuff
 
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from scipy import stats
+from statsmodels.formula.api import mixedlm
+from statsmodels.stats.multitest import multipletests
+df = pd.DataFrame()
+for lag in range(1, max_lag):
+    df = pd.concat([df, pd.DataFrame({'participant': list(range(n_subj)) * 2,
+                       'session': ['pre'] * n_subj + ['post']  * n_subj,
+                       'timelag': lag*10,
+                       'value': list(rs_pre_sf[:, lag]) +  list(rs_post_sf[:, lag]),
+                       'backward': list(rs_pre_sb[:, lag]) +  list(rs_post_sb[:, lag])})],
+                   ignore_index=True)
+
+# from statsmodels.formula.api import mixedlm
+# df['session_factor'] = pd.Categorical(df['session'],
+#                                       categories=['post', 'pre'],
+#                                       ordered=False)
+# df['timelag'] = df['timelag'].astype(str)
+
+# formula = "forward ~ session_factor * timelag"
+# model = mixedlm(formula, df, groups=df["participant"])
+# result = model.fit()
+# matched_model = smf.mixedlm("forward ~ session",
+#                            df,
+#                            groups=df["participant"])
+# matched_result = matched_model.fit()
+
+# Get unique timelags
+timelag_values = sorted(df['timelag'].unique())
+
+# 1. Visualize overall pattern
+plt.figure(figsize=(14, 6))
+sns.boxplot(x='timelag', y='value', hue='session', data=df)
+plt.title('Pre vs Post Values by Timelag')
+plt.xlabel('Timelag')
+plt.ylabel('Value')
+plt.xticks(rotation=90)
+plt.tight_layout()
+plt.show()
+
+# 2. Paired t-tests with correction for multiple comparisons
+results = []
+
+for tl in timelag_values:
+    pre_data = df[(df['timelag'] == tl) & (df['session'] == 'pre')]
+    post_data = df[(df['timelag'] == tl) & (df['session'] == 'post')]
+
+    # Get common participants
+    common_participants = sorted(
+        set(pre_data['participant']) & set(post_data['participant'])
+    )
+
+    # Paired data
+    pre_values = pre_data[pre_data['participant'].isin(common_participants)]
+    pre_values = pre_values.set_index('participant')['value'].loc[common_participants]
+
+    post_values = post_data[post_data['participant'].isin(common_participants)]
+    post_values = post_values.set_index('participant')['value'].loc[common_participants]
+
+    # Paired t-test
+    t_stat, p_value = stats.ttest_rel(pre_values, post_values)
+
+    # Effect size (Cohen's d for paired data)
+    diff = post_values - pre_values
+    d = diff.mean() / diff.std() if diff.std() != 0 else float('nan')
+
+    results.append({
+        'Timelag': tl,
+        'Mean Pre': pre_values.mean(),
+        'Mean Post': post_values.mean(),
+        'Mean Difference': diff.mean(),
+        't-statistic': t_stat,
+        'p-value': p_value,
+        'Effect Size (d)': d
+    })
+
+results_df = pd.DataFrame(results)
+
+# Apply corrections for multiple comparisons
+p_values = results_df['p-value'].values
+
+# Bonferroni correction (conservative)
+reject_bonf, p_corr_bonf, _, _ = multipletests(p_values, method='bonferroni')
+results_df['p-value (Bonferroni)'] = p_corr_bonf
+results_df['Significant (Bonferroni)'] = reject_bonf
+
+# False Discovery Rate correction (less conservative)
+reject_fdr, p_corr_fdr, _, _ = multipletests(p_values, method='fdr_bh')
+results_df['p-value (FDR)'] = p_corr_fdr
+results_df['Significant (FDR)'] = reject_fdr
+
+# Sort by p-value
+results_df = results_df.sort_values('p-value')
+
+# 3. Linear Mixed Model - accounts for repeated measures
+df_model = df.copy()
+df_model['timelag_cat'] = df_model['timelag'].astype(str)
+
+# Create a new session variable where 'post' is the reference level
+df_model['session_factor'] = pd.Categorical(df_model['session'],
+                                           categories=['post', 'pre'],
+                                           ordered=False)
+
+formula = "value ~ session_factor * timelag_cat"
+model = mixedlm(formula, df_model, groups=df_model["participant"])
+result = model.fit()
+
+# Extract overall session effect
+session_effect = None
+session_pvalue = None
+
+for param in result.params.index:
+    if param == 'session_factor[T.pre]':
+        session_effect = result.params[param]
+        session_pvalue = result.pvalues[param]
+
+# 4. Visualize differences with confidence intervals
+plt.figure(figsize=(14, 6))
+
+# Calculate mean differences and confidence intervals
+diff_data = []
+for tl in timelag_values:
+    pre_vals = df[(df['timelag'] == tl) & (df['session'] == 'pre')]['value']
+    post_vals = df[(df['timelag'] == tl) & (df['session'] == 'post')]['value']
+
+    mean_diff = post_vals.mean() - pre_vals.mean()
+
+    # Standard error of the difference
+    n = len(pre_vals)
+    se_diff = np.sqrt((pre_vals.var() + post_vals.var()) / n)
+
+    # 95% confidence interval
+    ci_lower = mean_diff - 1.96 * se_diff
+    ci_upper = mean_diff + 1.96 * se_diff
+
+    diff_data.append({
+        'Timelag': tl,
+        'Mean Difference': mean_diff,
+        'CI Lower': ci_lower,
+        'CI Upper': ci_upper
+    })
+
+diff_df = pd.DataFrame(diff_data)
+
+# Plot
+plt.errorbar(diff_df['Timelag'], diff_df['Mean Difference'],
+            yerr=[diff_df['Mean Difference'] - diff_df['CI Lower'],
+                  diff_df['CI Upper'] - diff_df['Mean Difference']],
+            fmt='o', capsize=5)
+
+# Highlight significant differences after FDR correction
+sig_timelags = results_df[results_df['Significant (FDR)']]['Timelag'].values
+if len(sig_timelags) > 0:
+    sig_diffs = [diff_df[diff_df['Timelag'] == tl]['Mean Difference'].values[0] for tl in sig_timelags]
+    plt.scatter(sig_timelags, sig_diffs, color='red', s=100, zorder=3, label='Significant (FDR)')
+    plt.legend()
+
+plt.axhline(y=0, color='k', linestyle='-', alpha=0.3)
+plt.grid(True, linestyle='--', alpha=0.7)
+plt.xlabel('Timelag')
+plt.ylabel('Mean Difference (Post - Pre)')
+plt.title('Pre-Post Differences by Timelag with 95% CIs')
+plt.tight_layout()
+plt.show()
+
+# Print key results
+print("\n=== ANALYSIS SUMMARY ===\n")
+print("OVERALL SESSION EFFECT (Linear Mixed Model):")
+if session_effect is not None:
+    print(f"Coefficient: {session_effect}")
+    print(f"p-value: {session_pvalue}")
+
+    # Interpret the coefficient
+    if session_effect < 0:
+        print("Interpretation: Post session values are higher than pre session values")
+    else:
+        print("Interpretation: Pre session values are higher than post session values")
+else:
+    print("Could not extract session effect from model")
+
+print("\nINDIVIDUAL TIMELAG COMPARISONS:")
+print("Top 5 smallest p-values:")
+cols = ['Timelag', 'Mean Difference', 'p-value', 'p-value (FDR)', 'Significant (FDR)']
+print(results_df.head(5)[cols])
+
+# Count significant findings
+n_sig_uncorr = sum(results_df['p-value'] < 0.05)
+n_sig_bonf = sum(results_df['Significant (Bonferroni)'])
+n_sig_fdr = sum(results_df['Significant (FDR)'])
+
+print(f"\nNumber of significant timelags:")
+print(f"  Without correction: {n_sig_uncorr} out of {len(results_df)}")
+print(f"  With Bonferroni: {n_sig_bonf} out of {len(results_df)}")
+print(f"  With FDR: {n_sig_fdr} out of {len(results_df)}")
 #%% RS1 vs RS2 segments
 
 tp = 31#np.mean(list(best_tp.values())).astype(int)
@@ -720,7 +1003,7 @@ utils.savefig(fig2, 'supplement/segments-rs2.png')
 # in this segment we show that we can decode events that are inserted into
 # the resting state by comparing the probability estimates given before
 # and after
-
+np.random.seed(42)
 
 tp = 31 # defined here so no need to recompute
 
@@ -798,13 +1081,20 @@ for i, subj in enumerate(tqdm(subjects, desc="subject")):
 
     # take some datapoints that have been inserted and some that have been left alone
     df_datastat = pd.concat([df_datastat,
-                             pd.DataFrame({'data' : rs_pre[df_onsets.pos[:500], :].ravel(), 'type': 'before insertion', 'subj':subj}),
-                             pd.DataFrame({'data' : rs_sim[df_onsets.pos[:500], :].ravel(), 'type': 'after insertion', 'subj':subj})],
+                             pd.DataFrame({'data' : rs_pre[df_onsets.pos[:500], :].ravel(),
+                                           'type': 'baseline',
+                                           'subj':subj}),
+                             pd.DataFrame({'data' : rs_sim[df_onsets.pos[:500], :].ravel(),
+                                           'type': 'with pattern',
+                                           'subj':subj})],
                              ignore_index=True)
 
     # get probabilities of simulated resting state
     proba_pre = clf.predict_proba(rs_pre)
     proba_sim = clf.predict_proba(rs_sim)
+
+    proba_pre_raw = proba_pre.copy()
+    proba_sim_raw = proba_sim.copy()
 
     proba_pre = eval(proba_norm)(proba_pre)
     proba_sim = eval(proba_norm)(proba_sim)
@@ -812,7 +1102,7 @@ for i, subj in enumerate(tqdm(subjects, desc="subject")):
     acc_pre = (proba_pre[df_onsets.pos].argmax(1)==df_onsets.class_idx).mean()
     acc_sim = (proba_sim[df_onsets.pos].argmax(1)==df_onsets.class_idx).mean()
     df_acc = pd.concat([df_acc, pd.DataFrame({'accuracy': [acc_pre, acc_sim],
-                                              'condition': ['before insertion', 'after insertion'],
+                                              'condition': ['baseline', 'with pattern'],
                                               'subj': subj})], ignore_index=True)
 
     # extract probabilities from four different positions
@@ -824,23 +1114,22 @@ for i, subj in enumerate(tqdm(subjects, desc="subject")):
     proba_sim_target = [proba_sim[row.pos][row.class_idx] for _, row in df_onsets.iterrows()]
     proba_sim_nontarget = list(np.ravel([proba_sim[row.pos][~np.in1d(range(10), 5)] for _, row in df_onsets.iterrows()]))
 
-    # get probability estimates on the localizer mean target class
-    # this should be the upper bound of classification
-    # proba_localizer = clf.predict_proba(insert_class_mean)
+    ## also add the non-normalized version
+    proba_pre_target_raw = [proba_pre_raw[row.pos][row.class_idx] for _, row in df_onsets.iterrows()]
+    proba_pre_nontarget_raw = list(np.ravel([proba_pre_raw[row.pos][~np.in1d(range(10), 5)] for _, row in df_onsets.iterrows()]))
 
-    # if normalize:
-        # proba_localizer = (proba_localizer.T / proba_localizer.sum(1)).T
-        # proba_localizer = (proba_localizer.T / proba_localizer.min(1)).T
+    proba_sim_target_raw = [proba_sim_raw[row.pos][row.class_idx] for _, row in df_onsets.iterrows()]
+    proba_sim_nontarget_raw = list(np.ravel([proba_sim_raw[row.pos][~np.in1d(range(10), 5)] for _, row in df_onsets.iterrows()]))
 
-    # proba_loc_target = list(proba_localizer[np.eye(len(proba_localizer), dtype=bool)])
-    # proba_loc_nontarget = list(proba_localizer[~np.eye(len(proba_localizer), dtype=bool)])
 
     df_proba_subj = pd.DataFrame({'proba': proba_pre_target + proba_pre_nontarget +
                                            proba_sim_target + proba_sim_nontarget,
-                                  'condition': ['before insertion']*len(proba_pre_target) +
-                                               ['before insertion']*len(proba_pre_nontarget) +
-                                               ['after insertion']*len(proba_sim_target) +
-                                               ['after insertion']*len(proba_sim_nontarget),
+                                  'proba_raw' : proba_pre_target_raw + proba_pre_nontarget_raw +
+                                                proba_sim_target_raw + proba_sim_nontarget_raw,
+                                  'condition': ['baseline']*len(proba_pre_target) +
+                                               ['baseline']*len(proba_pre_nontarget) +
+                                               ['with pattern']*len(proba_sim_target) +
+                                               ['with pattern']*len(proba_sim_nontarget),
                                   'class': ['target']*len(proba_pre_target) +
                                            ['other']*len(proba_pre_nontarget) +
                                            ['target']*len(proba_sim_target) +
@@ -853,18 +1142,18 @@ for i, subj in enumerate(tqdm(subjects, desc="subject")):
 fig = plt.figure(figsize=[6, 4])
 ax = fig.subplots(1,1)
 df_proba = df_proba.groupby(['subject', 'condition', 'class']).mean(0).reset_index()
-df_proba = df_proba.sort_values(['condition'], ascending=False).sort_values('class')
+df_proba = df_proba.sort_values(['condition'], ascending=True).sort_values('class')
 
 sns.boxplot(data=df_proba, x='condition', y='proba', hue='class', ax=ax)
 ax.set_ylabel('normalized classifier\nprobability estimate')
-ax.set_title(f'Decoded probability of item\nbefore and after insertion')
+ax.set_title(f'Decoded probability of item\nat baseline and with added pattern')
 utils.savefig(fig, f'supplement/rs_sim_decodability_norm_mode-{mode}.png')
 
 fig = plt.figure(figsize=[6, 4])
 ax = fig.subplots(1,1)
 sns.boxplot(data=df_acc, x='condition', y='accuracy', ax=ax)
 ax.set_ylabel('decoding accuracy')
-ax.set_title(f'Decoding accuracy of item\nbefore and after insertion')
+ax.set_title(f'Decoding accuracy of item\nat baseline and with added pattern')
 utils.savefig(fig, 'supplement/rs_sim_accuracy_norm_mode-{mode}.png')
 
 fig, ax = plt.subplots(1, 1, figsize=[6, 4])
@@ -874,29 +1163,30 @@ ax.set_ylabel('percentage')
 ax.set_xlabel('uT')
 ax.set_title(f's')
 ax.set_xlim(-0.5, 0.5)
-ax.set_title('Sensor values before/after insertion')
+ax.set_title('Sensor values at baseline\nand with added pattern')
 sns.despine()
 utils.savefig(fig, 'supplement/sensor-values-before-after-insertion.png')
 
 
 # ## plot probabilities at baseline for subjects
 # stop
-df_sequenceness = compress_pickle.load(pkl_sequencenes)
+# df_sequenceness = compress_pickle.load(pkl_sequencenes)
 
 
-fig = plt.figure(figsize=[6,6])
-hues = {subj:palette[int(100*(get_performance(subj)-0.5)*2)] for subj in subjects}
-df_proba_target = df_proba[df_proba['class']=='target']
-df_proba_target = df_proba_target.groupby(['condition', 'subject']).mean(True).reset_index()
-df_proba_target = df_proba_target.sort_values('condition', ascending=False)
-sns.scatterplot(data=df_proba_target, x='condition', y='proba', hue='subject',
-                legend=False, s=(150), palette=hues)
-sns.lineplot(data=df_proba_target, x='condition', y='proba', hue='subject',
-                legend=False, alpha=0.3, palette=hues)
-plt.ylabel('mean probability estimate')
-plt.title(f'Classifier Probabilities in Resting State \nfor all Subjects')
-utils.savefig(fig, 'supplement/mean-probability-estimate.png')
-
+fig, axs = plt.subplots(1, 2, figsize=[12,6])
+for y, ax in zip(['proba_raw', 'proba'], axs):
+    hues = {subj:palette[int(100*(get_performance(subj)-0.5)*2)] for subj in subjects}
+    df_proba_target = df_proba[df_proba['class']=='target']
+    df_proba_target = df_proba_target.groupby(['condition', 'subject']).mean(True).reset_index()
+    df_proba_target = df_proba_target.sort_values('condition', ascending=True)
+    sns.scatterplot(data=df_proba_target, x='condition', y=y, hue='subject',
+                    legend=False, s=(150), palette=hues, ax=ax)
+    sns.lineplot(data=df_proba_target, x='condition', y=y, hue='subject',
+                    legend=False, alpha=0.3, palette=hues, ax=ax)
+    ax.set_ylabel('mean probability estimate')
+    ax.set_title('Before normalization' if y=='proba_raw' else 'After normalization')
+fig.suptitle('Classifier probabilities across participants')
+utils.savefig(fig, 'supplement/mean-probability-normalization.png')
 
 
 # ## correlation between baseline probability magnitude and sequenceness
@@ -916,8 +1206,13 @@ utils.savefig(fig, 'supplement/mean-probability-estimate.png')
 # ax.set_ylabel('mean sequenceness')
 # fig.suptitle('Correlation RS pre sequenceness ~ baseline probabilities')
 # utils.savefig(fig, 'supplement/regression-baseline-probability-sequenceness.png')
+
+
+
 #%% simulate replay in control resting state
 print('Warning, this might take around >16GB of RAM')
+np.random.seed(42)
+
 # gaussian window created by gaussian_filter1d(np.float_([0,0,1,0,0]), 1)
 gaussian_weighting = [0.05842299, 0.24210528, 1, 0.24210528, 0.05842299]
 
@@ -925,7 +1220,7 @@ gaussian_weighting = [0.05842299, 0.24210528, 1, 0.24210528, 0.05842299]
 # replay density is defined in events/minute or events^-1min
 densities = np.arange(0, 210, 10)
 n_steps = 1
-
+pool = Parallel(-1)
 # run twice, once for the regular, linear case, and once for the best-case
 # which means scaling from 0-100%
 for name_perf_scale in names_perf_scale:
@@ -936,6 +1231,7 @@ for name_perf_scale in names_perf_scale:
     else:
         raise ValueError(f'{name_perf_scale=} unknown')
     rs_sims = []
+
     for s, subj in enumerate(tqdm(subjects_incl, desc="inserting patterns")):
         train_x, train_y = localizer[subj]
         insert_data_tp = train_x[:, :, tp-2:tp+3]  # take the ERP component at peak decodability
@@ -957,28 +1253,39 @@ for name_perf_scale in names_perf_scale:
         perf = perf_scale(perf)
 
         # insert into resting state data
-        rs_sim_densities = []
+        # rs_sim_densities = []
 
         # get probability estimates for item reactivation from the resting state
         # scale the number of replay events by the performance
-        for d, density in enumerate(densities):
+        n_events_all = [int(np.round(len(rs_pre)/sfreq/60 * dens * perf)) for dens in densities]
+        rs_sim_densities = pool(delayed(tdlm.utils.insert_events)(data = rs_pre,
+                                      insert_data = insert_data,
+                                      insert_labels = insert_labels,
+                                      lag=lag_sim,
+                                      distribution='constant',
+                                      n_steps=n_steps,
+                                      sequence = sequence,
+                                      n_events = n_events) for n_events in n_events_all)
 
-            # calculate how many events we need for the specific density
-            # scaled linearly by the participants peformance.
-            n_events = int(np.round(len(rs_pre)/sfreq/60 * density * perf))
+        # for d, density in enumerate(densities):
 
-            # insert events into the resting state
-            rs_sim_dens = tdlm.utils.insert_events(data = rs_pre,
-                                          insert_data = insert_data,
-                                          insert_labels = insert_labels,
-                                          lag=lag_sim,
-                                          distribution='constant',
-                                          n_steps=n_steps,
-                                          sequence = sequence,
+        #     # calculate how many events we need for the specific density
+        #     # scaled linearly by the participants peformance.
+        #     n_events = int(np.round(len(rs_pre)/sfreq/60 * density * perf))
 
-                                          n_events = n_events)
-            rs_sim_densities.append(rs_sim_dens)
+        #     # insert events into the resting state
+        #     rs_sim_dens = tdlm.utils.insert_events(data = rs_pre,
+        #                                   insert_data = insert_data,
+        #                                   insert_labels = insert_labels,
+        #                                   lag=lag_sim,
+        #                                   distribution='constant',
+        #                                   n_steps=n_steps,
+        #                                   sequence = sequence,
+        #                                   n_events = n_events)
+
+        #     rs_sim_densities.append(rs_sim_dens)
         rs_sims.append(rs_sim_densities)
+
     rs_sims = np.array(rs_sims)
 
     tp = 31 # np.mean(list(best_tp.values())).astype(int)
@@ -1032,12 +1339,13 @@ for name_perf_scale in names_perf_scale:
             rs_sim_sf_noalpha[s, d, :, :] = sf_sim_noalpha_subj
             rs_sim_sf[s, d, :, :] = sf_sim_subj
             rs_sim_sb[s, d, :, :] = sb_sim_subj
-        compress_pickle.dump([rs_sim_sf, rs_sim_sb, rs_sim_sf_noalpha], pkl_simdensity)
+
+    compress_pickle.dump([rs_sim_sf, rs_sim_sb, rs_sim_sf_noalpha], pkl_simdensity)
 
 
     # create sequenceness dictionary
     df_simulation = pd.DataFrame()
-    pkl_simulation = f'{settings.cache_dir}/simulation-sequenceness-{name_perf_scale}.pkl.zip'
+    pkl_simulation = f'{settings.cache_dir}/simulation-sequenceness-{name_perf_scale}-{lag_sim}.pkl.zip'
 
     for s, subj in enumerate(tqdm(subjects_incl, desc='creating dictionary')):
         perf = get_performance(subj, which='test')
@@ -1122,6 +1430,7 @@ ax.text(ax.get_xlim()[1], .5, f'r={r:.2f} p={pval:.3f}', horizontalalignment='ri
 
 
 #%% 2 individual sequenceness curves
+perf_test = {subj: get_performance(subj=subj, which="test") for subj in subjects_incl}
 
 ### plot the individual sequenceness curves into a big plot
 fig, axs, ax_b = utils.make_fig(n_axs=len(sf_sim), bottom_plots=[0,0,1])
@@ -1217,8 +1526,8 @@ utils.savefig(fig, f'figure/simulation-{lag_sim*10}ms-sequenceness.png')
 
 #%% 5a Corr with performance
 
-pkl_sim_linear = f'{settings.cache_dir}/simulation-sequenceness-linear.pkl.zip'
-pkl_sim_bestcase = f'{settings.cache_dir}/simulation-sequenceness-best-case.pkl.zip'
+pkl_sim_linear = f'{settings.cache_dir}/simulation-sequenceness-linear-{lag_sim}.pkl.zip'
+pkl_sim_bestcase = f'{settings.cache_dir}/simulation-sequenceness-best-case-{lag_sim}.pkl.zip'
 
 df_sim_linear = compress_pickle.load(pkl_sim_linear)
 df_sim_bestcase = compress_pickle.load(pkl_sim_bestcase)
@@ -1323,7 +1632,9 @@ ax.set_xlabel('bootstrapped sample size')
 # ax2.set_ylabel('correlation p value / Pearson\'s r')
 ax.set_ylabel('Power')
 ax.set_title('Correlation Perf. x Sequ. with increased sample size')
-# ax.hlines(0.05, *ax.get_xlim(), color='red', alpha=0.5, linestyle='--', label='p=0.05')
+ax.hlines(0.8, *ax.get_xlim(), color='gray', alpha=0.5, linestyle='--', label='80% power')
+# ax.vlines(150, 0, 1,
+#          color='black', alpha=0.5, linestyle='--')
 ax.legend()
 sns.despine()
 utils.savefig(fig, 'figure/correlation-power.png')
@@ -1368,6 +1679,95 @@ ax.set_title('Sequenceness variation across subject')
 ax.legend([*4*['_'], '50%', '_', '75%', '_', '_', '_', '100%'], loc='upper left', title='Performance')
 
 utils.savefig(fig, 'figure/correlation-bestcase-realistisc-case.png')
+
+#%% Cluster permutation of differences
+from mne.stats import permutation_cluster_1samp_test
+fontdict ={ 'fontsize': 18, 'horizontalalignment':'center'}
+
+
+all_axs = []
+
+for i, density in enumerate(densities):
+    fig, axs = plt.subplots(2, 1)
+    all_axs.extend(axs)
+    rs_pre_sf = rs_sim_sf[:, 0, 0, 1:]
+    rs_pre_sb = rs_sim_sb[:, 0, 0, 1:]
+    rs_post_sf = rs_sim_sf[:, i, 0, 1:]
+    rs_post_sb = rs_sim_sb[:, i, 0, 1:]
+
+    n_subj = len(rs_pre_sf)
+
+    # create differences between post and pre
+    diff_sf =  rs_pre_sf - rs_post_sf
+    diff_sb =  rs_pre_sb - rs_post_sb
+
+
+    df_diff = pd.DataFrame()
+    for lag in range( max_lag):
+        df_diff = pd.concat([df_diff,
+                             pd.DataFrame({'participant': list(range(n_subj))*2,
+                             'direction': ['forward'] * n_subj + ['backward']*n_subj,
+                             'timelag': 10+lag*10,
+                             'difference (u.u.)': list(diff_sf[:, lag]) + list(diff_sb[:, lag])
+                                           })],
+                             ignore_index=True)
+
+
+    for i, direction in enumerate(['forward', 'backward']):
+        ax = axs[i]
+        ax.clear()
+        ax.hlines(0, 0, max_lag*10+10, color='gray', linestyle='--', alpha=0.2)
+        sns.lineplot(df_diff[df_diff.direction==direction], x='timelag', y='difference (u.u.)', ax=ax,
+                     color=sns.color_palette()[i+1], err_style="bars", errorbar=("se", 2),
+                     err_kws={'capsize':5})
+        ax.set_ylim([x*1.5 for x in ax.get_ylim()])
+        ax.set_title(f'{direction} difference pre-post {density=}')
+        ax.legend(['_', 'diff', 'SE'], loc='lower right')
+
+    utils.normalize_lims( [axs[0], axs[1]])
+
+    p_fwd = stats.ttest_rel(rs_pre_sf, rs_post_sf, axis=0, nan_policy='omit')
+    p_bkw = stats.ttest_rel(rs_pre_sb, rs_post_sb, axis=0, nan_policy='omit')
+
+    _, p_fwd_corr, _, _ = multipletests(p_fwd.pvalue, method='fdr_bh')
+    _, p_bkw_corr, _, _ = multipletests(p_bkw.pvalue, method='fdr_bh')
+
+
+    for idx in np.where(p_fwd.pvalue<0.05)[0]:
+        star = '*' if p_fwd_corr[idx]<0.05 else '(*)'
+        axs[0].text(idx*10+10, axs[0].get_ylim()[1]*0.75,star, fontdict=fontdict)
+        print((idx+1)*10, f'{p_fwd.pvalue[idx]=:.3f} {p_fwd_corr[idx]=:.3f}')
+
+    for idx in np.where(p_bkw.pvalue<0.05)[0]:
+        star = '*' if p_fwd_corr[idx]<0.05 else '(*)'
+        axs[1].text(idx*10+10, axs[1].get_ylim()[1]*0.75,star, fontdict=fontdict)
+        print((idx+1)*10, f'{p_bkw.pvalue[idx]=:.3f} {p_bkw_corr[idx]=:.3f}')
+
+    plt.pause(0.1)
+    fig.tight_layout()
+
+    for i, diff in enumerate([diff_sf, diff_sb]):
+        t_thresh = stats.distributions.t.ppf(1 - 0.05, df=len(diff) - 1)
+        t_clust, clusters1, p_values1, H0 = permutation_cluster_1samp_test(
+            diff,
+            tail=1,
+            n_jobs=None,
+            threshold=t_thresh,
+            adjacency=None,
+            n_permutations=10000,
+            out_type="mask",
+        )
+        print(p_values1)
+        for (t, ), p in zip(clusters1, p_values1, strict=True):
+            if p<0.05:
+                ax = axs[i]
+                ax.hlines(ax.get_ylim()[1]*0.8, t.start*10, t.stop*10,
+                          color='red', linewidth=5, alpha=0.5)
+
+
+utils.normalize_lims(all_axs)
+# utils.savefig(fig, f'figure/cluster_sim.png')
+
 #%% [DEPR.] use blocks, decay over time
 
 # this analysis makes no sense as earlier segments would have a drastically
@@ -1429,8 +1829,63 @@ for d, density in enumerate(densities):
 utils.highlight_cells(mask.T, ax=ax)
 #%% #### SUPPLEMENT
 # here are calculations that I need for the supplement
+#%% SUPPL: sensor patterns
 
-#%% visualize ERP
+
+patterns = {img:[] for img in ['berg',
+                                 'schreibtisch',
+                                 'pinsel',
+                                 'kuchen',
+                                 'apfel',
+                                 'zebra',
+                                 'clown',
+                                 'fahrrad',
+                                 'tasse',
+                                 'fuß']}
+
+for i, subj in enumerate(tqdm(subjects, desc="subject")):
+    # train our classifier using localizer data and negative data
+    train_x, train_y = localizer[subj]
+    clf.fit(train_x[:, :, tp], train_y, neg_x=neg_x[subj], neg_x_ratio=2.0)
+
+    # get data from localizer that is inserted into the resting state
+    insert_data_tp = train_x[:, :, tp]  # take the ERP component at peak decodability
+
+    # ERP of all visual evoked activity
+    erp = insert_data_tp.mean(0)
+
+    # now for each class, subtract the mean EPR from the class ERP.
+    # this way, we should isolate the pattern that is responsible
+    # for the differences
+    names_subj = utils.get_image_names(subj)
+
+    for i, name in enumerate(names_subj):
+        insert_class_pattern = [insert_data_tp[train_y==i, :].mean(0)-erp]
+        patterns[name] += insert_class_pattern
+
+
+fig = plt.figure(figsize=[10, 8])
+axs = fig.subplots(3, 4)
+axs = axs.flatten()
+cmap = sns.color_palette("vlag", as_cmap=True)
+
+vmin = np.min([np.mean(values, 0) for values in patterns.values()])/1.2
+vmax = np.max([np.mean(values, 0).max() for values in patterns.values()])/1.2
+
+for i, name in enumerate(patterns):
+    plotting.plot_sensors(np.mean(patterns[name], 0),
+                          ax=axs[i],
+                          vmin=vmin,
+                          vmax=vmax,
+                          mode="color",
+                          title=name, cmap=cmap)
+
+axs[-1].axis("off")
+axs[-2].axis("off")
+
+utils.savefig(fig, f'supplement/insertion_patterns.png')
+
+#%% SUPPL: visualize ERP
 from meg_utils import plotting
 from scipy.stats import zscore
 
@@ -1462,7 +1917,7 @@ fig.tight_layout
 fig.savefig(results_dir + "/image-ERP.svg")
 fig.savefig(results_dir + "/image-ERP.png")
 
-#%% visualize sensors betas
+#%% SUPPL: visualize sensors betas
 from meg_utils import plotting
 
 def fit(clf, subj, *args, **kwargs):
@@ -1501,7 +1956,7 @@ fig.tight_layout
 fig.savefig(results_dir + "/S6 sensorlocation.svg")
 fig.savefig(results_dir + "/S6 sensorlocation.png")
 
-#%% RS1 vs RS2 no alpha
+#%% SUPPL: RS1 vs RS2 no alpha
 
 # #TODO fix this
 tp = 31#np.mean(list(best_tp.values())).astype(int)
@@ -1641,6 +2096,58 @@ plt.pause(0.1)
 fig.tight_layout()
 utils.savefig(fig, f'supplement/sequenceness_rs_noalpha.png')
 
+
+#%% SUPPL: TDLM MATLAB simulation probabilities
+
+res = mat73.loadmat('./MATLAB/probabilities.mat')
+
+df_proba = pd.DataFrame()
+for subj in range(len(res['probaNonTarget_post'])):
+    pre_target = np.squeeze(res['probaTarget_pre'][subj])
+    pre_nontarget = np.squeeze(res['probaNonTarget_pre'][subj])
+    post_target = np.squeeze(res['probaTarget_post'][subj])
+    post_nontarget = np.squeeze(res['probaNonTarget_post'][subj])
+    df_proba = pd.concat([df_proba,
+                             pd.DataFrame({'proba' : np.squeeze(pre_target),
+                                           'class': 'target',
+                                           'condition': 'baseline',
+                                           'subject':subj}),
+                             pd.DataFrame({'proba' : np.squeeze(pre_nontarget),
+                                           'class': 'other',
+                                           'condition': 'baseline',
+                                           'subject':subj}),
+                             pd.DataFrame({'proba' : np.squeeze(post_target),
+                                           'class': 'target',
+                                           'condition': 'with pattern',
+                                           'subject':subj}),
+                             pd.DataFrame({'proba' : np.squeeze(post_nontarget),
+                                           'class': 'other',
+                                           'condition': 'with pattern',
+                                           'subject':subj}),],
+                             ignore_index=True)
+
+fig = plt.figure(figsize=[6, 6])
+ax = fig.subplots(1,1)
+df_proba = df_proba.groupby(['subject', 'condition', 'class']).mean(0).reset_index()
+df_proba = df_proba.sort_values(['condition'], ascending=True).sort_values('class')
+
+sns.boxplot(data=df_proba, x='condition', y='proba', hue='class', ax=ax)
+ax.set_ylabel('classifier probability estimate')
+ax.set_title(f'MATLAB Simulation \nDecoded probability of item\nat baseline and with added pattern')
+utils.savefig(fig, f'supplement/MATLAB-probabilities-boxplot.png')
+
+fig = plt.figure(figsize=[6,6])
+# hues = {subj:palette[int(100*(get_performance(subj)-0.5)*2)] for subj in subjects}
+df_proba_target = df_proba[df_proba['class']=='target']
+df_proba_target = df_proba_target.groupby(['condition', 'subject']).mean(True).reset_index()
+df_proba_target = df_proba_target.sort_values('condition', ascending=True)
+sns.scatterplot(data=df_proba_target, x='condition', y='proba', hue='subject',
+                legend=False, s=(150))
+sns.lineplot(data=df_proba_target, x='condition', y='proba', hue='subject',
+                legend=False, alpha=0.3)
+plt.ylabel('classifier probability estimate')
+plt.title(f'MATLAB Simulation\nClassifier Probabilities in Resting State')
+utils.savefig(fig, 'supplement/MATLAB-probabilities-lineplot.png')
 
 #%% %%% TRYOUTS
 
