@@ -2,7 +2,7 @@
 
 Code for the resting state analysis and simulation data using TDLM for the paper "Challenges in Replay Detection by TDLM in Post-Encoding Resting State"
 
-For an overview of the experiment and results head to GH-pages: **[DeSMRRest-TDLM-Simulation](https://github.com/CIMH-Clinical-Psychology/DeSMRRest-TDLM-Simulation)**
+For an overview of the experiment and results head to GH-pages: [Paper: Challenges in Replay Detection by TDLM in Post-Encoding Resting State](https://cimh-clinical-psychology.github.io/DeSMRRest-TDLM-Simulation/)
 
 Find the preprint at XXX
 
