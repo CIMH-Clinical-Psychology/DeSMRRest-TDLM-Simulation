@@ -1,5 +1,5 @@
 compress_pickle==2.1.0
-mat73==0.63
+mat73
 matplotlib==3.8.4
 mne==1.9.0
 natsort==8.4.0
@@ -14,3 +14,4 @@ seaborn==0.13.2
 statsmodels==0.14.0
 tdlm_python
 tqdm
+pyzenodo3
