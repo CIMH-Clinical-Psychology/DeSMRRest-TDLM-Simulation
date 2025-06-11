@@ -1,0 +1,20 @@
+preprint alert 🚨
+1/ How accurate can we detect sequential replay using Temporally Delayed Linear Modelling (#TDLM)? In our most recent study, we were unable to detect any replay signatures and decided to dig deeper. Link to preprint and explanation below 👇
+
+2/ link to preprint: XXX, link to GH-pages: XXX
+
+3/ We let 30 participants learn a hidden graph structure while in the MEG. We expected to find replay in a resting state session following the learning. However no clear sequenceness was found, despite similar pipeline as previous papers.
+
+4/ Our decoders work well so we decided to investigate and came up with a hybrid simulation approach that simulates replay under realistic conditions (i.e. endogenous oscillations). Previous studies only used completely synthetic data.
+
+5/ We used the control resting state (from before the experiment) of each participant as a basis. We then inserted subtle patterns of each stimulus from the localizer with specific time intervals into the resting state.
+
+6/ This way, we could vary the amount of sequential replay as ground truth and assess whether TDLM would pick up on this clear pattern. Importantly: These signatures were still well-decodable by the classifiers, probably over-estimating real replay signatures.
+
+7/ To our surprise, we needed >80 replay events per minute to reach the lowest bar of significance, with more than 120 events per minute for solid evidence. Cf. typical ripple rates in humans (as a proxy for estimating replay density) are ~15 per minute.
+
+8/ Additionally, when re-using the sample simulation published in the TDLM methods paper, we found that replay was simulated with 2000 reactivations per minute! When simulating with more realistic 15 events per minute, even the sample code fails to reach significance.
+
+9/ It is biologically implausible that the brain maintains a replay density of more than one replay per second for several minutes. However, it is conceivable to have one replay events per second during shorter time windows.
+
+10/ We conclude with recommendations for future studies employing TDLM. We believe the method is in principle powerful and clean, yet certain conditions must (eg short analysis window) be met. Methodological advances must made to be viable for application during rest&sleep.
