@@ -6,11 +6,9 @@ Created on Mon Apr 15 11:08:58 2024
 """
 import os
 import settings
-import platform
 import tdlm
-import meg_tools
-import itertools
 import utils
+import platform
 from tqdm import tqdm
 import time
 import random
@@ -33,7 +31,6 @@ from utils import get_best_timepoint, get_performance, load_pkl_pandas
 from utils import plot_correlation, zscore_multiaxis
 from scipy.stats import ttest_rel
 from scipy import stats
-from scipy.ndimage import gaussian_filter
 from statsmodels.stats.multitest import multipletests
 
 zscore_multiaxis = lambda x, axes: stats.zscore(x, axes, nan_policy='omit')
@@ -72,10 +69,8 @@ c_bkw = palette[2]
 # settings.default_autoreject=False
 
 if platform.node()=='5CD320LFH8':
-    print('WARNING: AR and ICA are off')
     settings.default_autoreject=False
     settings.default_ica_components=False
-
 #%% define TDLM parameters
 n_shuf = 1000  # do 1000 permutations
 max_lag = 30  # 500 ms time lag maximum
@@ -92,7 +87,7 @@ names_perf_scale = ['best-case', 'linear']
 
 #%% simulation parameters
 mode = 'erp_diff_all'
-lag_sim = 7  # simulate replay at 70 milliseconds
+lag_sim = 8  # simulate replay at 80 milliseconds
 sequence = tdlm.utils.char2num(settings.seq_12)[:-1]
 tp = 31
 
@@ -122,7 +117,7 @@ rs2 = {}
 neg_x = {}  # pre-audio fixation cross neg_x of localizer
 seqs = {}  # load sequences of that participant in this dict
 
-for subj in tqdm(subjects, desc="Loading data"):
+for subj in tqdm(subjects[::-1], desc="Loading data"):
     # data used for the localizer
     localizer[subj] = load_localizers_seq12(subj=subj, sfreq=sfreq, bands=bands, autoreject=settings.default_autoreject, ica=settings.default_ica_components)
     # negative examples from the fixation cross before audio cue onset
@@ -241,7 +236,7 @@ Cs = np.logspace(-1.2, 2.5, 25, dtype=np.float16)
 
 for C in tqdm(Cs):
     clf_x.set_params(C=C)
-    resx = Parallel(10)(delayed(utils.get_best_timepoint)(*localizer[subj], subj=subj,
+    resx = Parallel(4)(delayed(utils.get_best_timepoint)(*localizer[subj], subj=subj,
                                                          clf=clf_x,  ex_per_fold=8,
                                                          add_null_data=True,
                                                          verbose=False)
@@ -305,7 +300,7 @@ for i, subj in enumerate(tqdm(subjects, desc="subject")):
 
     data_x, data_y = localizer[subj]
     res = get_best_timepoint(
-        data_x, data_y, subj=f"{subj}", n_jobs=-1, ex_per_fold=ex_per_fold, clf=clf
+        data_x, data_y, subj=f"{subj}", n_jobs=-1, ex_per_fold=8, clf=clf
     )
     results_localizer = pd.concat([results_localizer, res], ignore_index=True)
 
@@ -564,6 +559,7 @@ fig, axs = plt.subplot_mosaic([['1', '1', 'D1', 'D1'],
                                ['A', 'B', 'C', 'D']], figsize=[14, 14])
 
 perf_test = {subj: get_performance(subj=subj, which="test") for subj in subjects_incl}
+perf_diff = {subj: perf_test[subj] - get_performance(subj=subj, which="learning")[-1]  for subj in subjects_incl}
 
 sequence_names = ['Control', 'Post-Learn']
 
@@ -619,6 +615,36 @@ utils.normalize_lims([ax for desc, ax in axs.items() if not desc.isnumeric() and
 plt.pause(0.1)
 fig.tight_layout()
 # utils.savefig(fig, f'figure/sequenceness_rs.png')
+
+## calculate for difference in performance
+fig, axs = plt.subplots(2, 2, figsize=[12,8 ])
+
+for i, direction in enumerate(['forward', 'backward']):
+    ax = axs[i][0]
+    c = [c_fwd, c_bkw][i][0]
+    rs_pre = [rs1_sf, rs1_sb][i]
+    peak_lag =  np.nanargmax(abs(np.nanmean(rs_pre[:, 0, :], 0)))
+    peak_vals = dict(zip(subjects_incl, rs_pre[:, 0, peak_lag]))
+    r1, pval1 = plot_correlation(peak_vals, values=perf_diff,
+                                 color=c, ax=ax,title=f"Control")
+    ax.text(ax.get_xlim()[1], -0.2, f'r={r1:.2f} p={pval1:.3f}', horizontalalignment='right')
+    ax.set_ylabel('perf. diff. post-pre')
+
+    ax = axs[i][1]
+    c = [c_fwd, c_bkw][i][1]
+    rs_post = [rs2_sf, rs2_sb][i]
+    peak_lag =  np.nanargmax(abs(np.nanmean(rs_post[:, 0, :], 0)))
+    peak_vals = dict(zip(subjects_incl, rs_post[:, 0, peak_lag]))
+    r1, pval1 = plot_correlation(peak_vals, values=perf_diff,
+                                 color=c, ax=ax,title=f"Post-Learn")
+    ax.text(ax.get_xlim()[1], -0.2, f'r={r1:.2f} p={pval1:.3f}', horizontalalignment='right')
+    ax.set_ylabel('perf. diff. post-pre')
+utils.normalize_lims(axs.flatten())
+
+fig.suptitle('Correlation between performance deltas and peak sequenceness')
+plt.pause(0.1)
+fig.tight_layout()
+utils.savefig(fig, f'supplement/correlation_pre-post-difference.png')
 
 #%% RS2-RS1 post cluster permutation
 from mne.stats import permutation_cluster_1samp_test
@@ -1225,9 +1251,11 @@ pool = Parallel(-1)
 # which means scaling from 0-100%
 for name_perf_scale in names_perf_scale:
     if name_perf_scale=='linear':
-        perf_scale = lambda perf: perf  # linear relationship
+        # perf_scale = lambda perf: perf  #  linear relationship
+        perf_scale = lambda perf: -perf+1.5  # inverse linear relationship
     elif name_perf_scale=='best-case':
-        perf_scale = lambda perf: (perf-0.5)*2  # toggle this for best case scenario
+        perf_scale = lambda perf: (-perf+1.5-0.5)*2  # toggle this for best case scenario
+        # perf_scale = lambda perf: (perf-0.5)*2  # toggle this for reverse best case scenario
     else:
         raise ValueError(f'{name_perf_scale=} unknown')
     rs_sims = []
@@ -1550,10 +1578,15 @@ sns.lineplot(df_corr, x='density', y='r', hue='performance scaling',
 
 r_sign = utils.calculate_r_threshold(len(df_both.subject.unique()))  # this is the r value at which it will be significant
 
-ax.hlines(r_sign, *ax.get_xlim(), linestyle='--', color='red', label='p<0.05', alpha=0.5)
-ax.legend(loc='lower right')
+ax.hlines(-r_sign, *ax.get_xlim(), linestyle='--', color='red', label='p<0.05', alpha=0.5)
+ax.legend(loc='upper left', framealpha=1.0)
+ax.invert_yaxis()
+
+# invert axis as we have negative correlations
+# ax.set_ylim(*[y*-1 for y in ax.get_ylim()])
 
 ax.set_ylabel('corr(perf, sequenceness)')
+ax.set_xlabel('replay density (events min⁻¹)')
 ax.set_title('Performance correlation across densities')
 
 sns.despine()
@@ -1596,12 +1629,17 @@ utils.savefig(fig, 'figure/correlation-timelags.png')
 
 #%% 5c power curve, bootstrapping
 from joblib import Parallel, delayed
+perf_test = [get_performance(subj=subj, which="test") for subj in subjects_incl]
+
+pkl_simdensity = settings.cache_dir + f'/simulation-full-best-case.pkl.zip'
+rs_sim_sf, rs_sim_sb, _ = compress_pickle.load(pkl_simdensity)
+
 np.random.seed(20241009)  # todays date as random seed
 rs_sim_sf_normed = zscore_multiaxis(rs_sim_sf, axes=zscore_axes)
 n_repetitions = 10000
-sample_sizes = range(20, 300)
+sample_sizes = range(15, 200)
 
-density_95 = np.nonzero(densities>=120)[0][0]
+density_95 = np.nonzero(densities>=80)[0][0]
 
 def r_val_boostrap(n):
     rs = []
@@ -1640,8 +1678,8 @@ sns.despine()
 utils.savefig(fig, 'figure/correlation-power.png')
 
 #%% 5d  plot individual sequenceness
-pkl_sim_linear = f'{settings.cache_dir}/simulation-sequenceness-linear.pkl.zip'
-pkl_sim_bestcase = f'{settings.cache_dir}/simulation-sequenceness-best-case.pkl.zip'
+pkl_sim_linear = f'{settings.cache_dir}/simulation-sequenceness-linear-{lag_sim}.pkl.zip'
+pkl_sim_bestcase = f'{settings.cache_dir}/simulation-sequenceness-best-case-{lag_sim}.pkl.zip'
 
 df_sim_baseline = df_simulation[df_simulation.density==0]
 df_sim_linear = compress_pickle.load(pkl_sim_linear)
@@ -1665,7 +1703,7 @@ df_sel.sort_values('sorter', inplace=True)
 
 # create color palette based on performance
 fig, ax = plt.subplots(figsize=[8, 6])
-palette = sns.color_palette("ch:start=.2,rot=-.3", n_colors=101)
+palette = sns.color_palette("ch:start=.2,rot=-.3", n_colors=151)[::-1]
 hues = {subj:palette[int(100*(get_performance(subj)-0.5)*2)] for subj in df_sel.subject}
 mp = sns.scatterplot(df_sel, x='condition', y='seq70', hue='subject', palette=hues,
                   legend=True, s=100, ax=ax)
@@ -2148,6 +2186,63 @@ sns.lineplot(data=df_proba_target, x='condition', y='proba', hue='subject',
 plt.ylabel('classifier probability estimate')
 plt.title(f'MATLAB Simulation\nClassifier Probabilities in Resting State')
 utils.savefig(fig, 'supplement/MATLAB-probabilities-lineplot.png')
+
+#%% SUPPL: Raw probabilities per class
+from meg_utils.decoding import cross_validation_across_time
+ex_per_fold = 8
+
+df_proba = pd.DataFrame()
+for subj in tqdm(subjects, desc='calculating probas'):
+
+    data_x, data_y = localizer[subj]
+    df_subj, probas = cross_validation_across_time(data_x, data_y, subj=subj,
+                                                   n_jobs=-1, tmin=-0.1, tmax=0.5,
+                                                   ex_per_fold=ex_per_fold, clf=clf,
+                                                   return_probas=True, verbose=False)
+    _, n_times, n_classes = probas.shape
+    df_proba_subj = pd.DataFrame()
+    timepoint = np.repeat(df_subj.timepoint.unique(), n_classes)
+    stimuli_de = utils.get_image_names(subj)
+    stimuli_en = [settings.stim_translation[name] for name in stimuli_de]
+    stim_names = [f'{de}/{en}' for de, en in zip(stimuli_de, stimuli_en)]
+
+    for i, (proba, y) in enumerate(zip(probas, data_y, strict=True)):
+        label = ['other']*proba.shape[-1]
+        label[y] = 'target'
+        df_tmp = pd.DataFrame({'label': np.hstack([label]* n_times),
+                               'timepoint': timepoint,
+                               'proba': proba.ravel(),
+                               'stimulus': stim_names[y]})
+        df_proba_subj = pd.concat([df_proba_subj, df_tmp], ignore_index=True)
+
+    df_proba_subj = df_proba_subj.groupby(['label', 'timepoint', 'stimulus']).mean().reset_index()
+    df_proba_subj['subject'] = subj
+    df_proba = pd.concat([df_proba, df_proba_subj], ignore_index=True)
+
+
+fix, axs = plt.subplots(4, 3, figsize=[14, 8])
+axs = axs.flatten()
+ax_b = axs[-1]
+
+for i, stimulus in enumerate(sorted(stim_names)):
+    ax = axs[i]
+    sns.lineplot(df_proba[df_proba.stimulus==stimulus], x='timepoint', style='subject',
+                 y='proba', hue='label', ax=ax, alpha=0.1, legend=False)
+    sns.lineplot(df_proba[df_proba.stimulus==stimulus], x='timepoint',
+                 y='proba', hue='label', ax=ax)
+    ax.set_title(stimulus)
+    plt.pause(0.1)
+
+df_proba_mean = df_proba.groupby(['timepoint', 'label', 'subject']).mean(True).reset_index()
+
+sns.lineplot(df_proba_mean, x='timepoint', y='proba', hue='label', style='subject',
+             ax=ax_b, alpha=0.1, legend=False)
+sns.lineplot(df_proba_mean, x='timepoint', y='proba', hue='label', ax=ax_b)
+ax_b.set_title('All stimuli')
+plotting.normalize_lims(list(axs))
+fig.tight_layout()
+plt.pause(0.1)
+fig.savefig(settings.plot_dir + f'localizer_perclass.png')
 
 #%% %%% TRYOUTS
 

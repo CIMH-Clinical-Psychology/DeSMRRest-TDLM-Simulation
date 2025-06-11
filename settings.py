@@ -122,7 +122,7 @@ system   = platform.system().lower()  # linux, windows or mac.
 home = os.path.expanduser('~')
 
 
-data_dir = ""  # enter directory here where the data has been stored
+data_dir = "."  # enter directory here where the data has been stored
 
 # machine specific configuration overwrites general directory structure
 if username == 'simon.kern' and host=='zislrds0035.zi.local':  # simons VM
@@ -141,7 +141,6 @@ elif username == 'simon' and host in ('thinkpad-simon', 'desktop-dakomj2'):
 else:
     warnings.warn('No user specific settings found in settings.py')
 
-os.environ['JOBLIB_CACHE_DIR'] = cache_dir
 
 #%% checks for stuff
 if 'cache_dir' not in locals():
@@ -151,6 +150,7 @@ if 'plot_dir' not in locals():
 if 'log_dir' not in locals():
     log_dir = f"{data_dir}/plots/logs/"  # log files will be created here
 
+os.environ['JOBLIB_CACHE_DIR'] = cache_dir
 
 results_dir = os.path.expanduser(f"{data_dir}/results/")  # final results here
 
@@ -204,6 +204,20 @@ zi_palette = [
     "#d1bcdc",
     "#fcd8c1",
 ]
+
+
+stim_translation = {
+    'apfel': 'apple',
+    'berg': 'mountain',
+    'clown': 'clown',
+    'fahrrad': 'bicycle',
+    'fuß': 'foot',
+    'kuchen': 'cake',
+    'pinsel': 'brush',
+    'schreibtisch': 'desk',
+    'tasse': 'cup',
+    'zebra': 'zebra'
+}
 
 # the sequences with loop included
 seq_12 = "ABCDEFGEHIBJAB"

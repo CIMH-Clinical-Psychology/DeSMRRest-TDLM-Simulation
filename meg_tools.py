@@ -99,6 +99,8 @@ def make_meg_epochs(raw, events, tmin=-0.1, tmax=0.5, autoreject=True, picks="me
         epoch labels in format (n_epochs)
     """
     # create epochs based on event ids
+    # events[:, 0] += raw.first_samp
+
     epochs = mne.Epochs(
         raw,
         events=events,
