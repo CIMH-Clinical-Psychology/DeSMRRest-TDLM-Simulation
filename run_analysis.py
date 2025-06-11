@@ -445,8 +445,7 @@ fig.savefig(results_dir + "/classifier-transfer.png")
 
 #%% RS1 vs RS2
 
-# #TODO fix this
-tp = 31#np.mean(list(best_tp.values())).astype(int)
+tp = np.mean(list(best_tp.values())).astype(int)
 
 clf.set_params(C=best_C)
 # put forward and backward sequenceness per subject for RS1/RS2 in these arrays
@@ -1990,10 +1989,8 @@ fig.savefig(results_dir + "/S6 sensorlocation.png")
 
 #%% SUPPL: RS1 vs RS2 no alpha
 
-# #TODO fix this
-tp = 31#np.mean(list(best_tp.values())).astype(int)
-# C=9
-# clf.set_params(C=C)
+tp = np.mean(list(best_tp.values())).astype(int)
+
 # put forward and backward sequenceness per subject for RS1/RS2 in these arrays
 rs1_sf = np.full([len(subjects_incl), n_shuf, max_lag+1], np.nan)
 rs1_sb = np.full([len(subjects_incl), n_shuf, max_lag+1], np.nan)
