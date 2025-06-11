@@ -2,6 +2,10 @@
 
 Code for the resting state analysis and simulation data using TDLM for the paper "Challenges in Replay Detection by TDLM in Post-Encoding Resting State"
 
+For an overview of the experiment and results head to GH-pages: **[DeSMRRest-TDLM-Simulation](https://github.com/CIMH-Clinical-Psychology/DeSMRRest-TDLM-Simulation)**
+
+Find the preprint at XXX
+
 ### 1. Getting started
 
 First install the requirements using pip `pip install -r requirements.txt`. It is recommended to run this in a dedicated environment not to mix up your current Python installation. You can do so e.g. using [conda env](https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#creating-an-environment-with-commands).
@@ -29,7 +33,5 @@ Download the experiment files from [Zenodo](https://zenodo.org/record/8001755) i
 ### 3. Run analysis
 
 Now you can simply run `run_analysis.py`. I personally used [Spyder](https://spyder-ide.org/ ) to run the script, which also nicely annotates the cells. It's included in Anaconda, so you might already have it installed.
-
-
 
 All plots should appear in your plot_dir
