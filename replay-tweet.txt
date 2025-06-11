@@ -1,7 +1,7 @@
 preprint alert 🚨
 1/ How accurate can we detect sequential replay using Temporally Delayed Linear Modelling (#TDLM)? In our most recent study, we were unable to detect any replay signatures and decided to dig deeper. Link to preprint and explanation below 👇
 
-2/ link to preprint: XXX, link to GH-pages: XXX
+2/ link to preprint: XXX, link to GH-pages summary: https://cimh-clinical-psychology.github.io/DesMRRest-TDLM-Simulation
 
 3/ We let 30 participants learn a hidden graph structure while in the MEG. We expected to find replay in a resting state session following the learning. However no clear sequenceness was found, despite similar pipeline as previous papers.
 
