@@ -8,7 +8,6 @@ import os
 import settings
 import tdlm
 import utils
-import platform
 from tqdm import tqdm
 import time
 import random
@@ -33,13 +32,11 @@ from scipy.stats import ttest_rel
 from scipy import stats
 from statsmodels.stats.multitest import multipletests
 
-zscore_multiaxis = lambda x, axes: stats.zscore(x, axes, nan_policy='omit')
-# zscore_multiaxis = lambda x, y: x
 utils.lowpriority()  # make sure not to clog CPU on multi-user systems
 #%% Settings
 
 # this is the classifier that will be used
-C = 9.1
+C = 9.1  # determined previously via cross-validation, see below
 clf = utils.LogisticRegressionOvaNegX(C=C, penalty="l1", neg_x_ratio=2)
 
 # list the files
@@ -66,11 +63,7 @@ proba_norm = 'lambda x: x/x.mean(0)'
 palette = sns.color_palette()
 c_fwd = palette[1]
 c_bkw = palette[2]
-# settings.default_autoreject=False
 
-if platform.node()=='5CD320LFH8':
-    settings.default_autoreject=False
-    settings.default_ica_components=False
 #%% define TDLM parameters
 n_shuf = 1000  # do 1000 permutations
 max_lag = 30  # 500 ms time lag maximum
@@ -136,6 +129,7 @@ df_subjects = pd.DataFrame({'subject': subjects,
                             'accuracy': max_accuracy,
                             'performance': test_performance})
 
+# define which participants are rejected due to preregistered criteria
 excluded_acc = [subj for subj in subjects if utils.get_decoding_accuracy(subj, clf=clf)[0]<0.3]
 excluded_perf = [subj for subj in subjects if utils.get_performance(subj, which='test')<0.5]
 excluded_miss = [subj for subj in subjects if utils.get_responses_localizer(subj)['n_misses']>60*0.25]
@@ -1024,7 +1018,7 @@ for seg in range(8):
 utils.savefig(fig2, 'supplement/segments-rs2.png')
 
 
-#%%  %%% SIMULATION
+#%%  %%% STUDY 2:  SIMULATION
 #%% Sim-decodability in RS
 # in this segment we show that we can decode events that are inserted into
 # the resting state by comparing the probability estimates given before
