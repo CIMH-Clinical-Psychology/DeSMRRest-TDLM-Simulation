@@ -192,7 +192,7 @@ participants were instructed to press a button in case of mismatch (attention ch
 	        <img src="./images/stimuli.png" alt="all 10 stimuli visualized"/>
 <p>Video of screen during localizer (click to play, with audio)</p>
 <div is-centered >
-          <video poster="" id="video3" autoplay controls loop height="100%">\
+          <video poster="" id="video3" controls loop height="100%">\
             <!-- Your video file here -->
             <source src="./images/presentation_localizer.mp4"
             type="video/mp4">
@@ -296,9 +296,13 @@ learning but needed to learn triplets/surrounding. Participants never
       <img src="./images/figure_localizer.png" alt="Classifier performance across participants" style="max-width:100%">
 	  <figcaption>Figure 1 Left: Memory performance of participants per block. Middle: Decoding accuracy for each item (chance = 10%) across time. Error bars show ±1 SEM. Right: Decoding heatmap for training at specific time point and testing on another.</figcaption>
 	<figure>
+	  </div>
+</section>
 
+<section class="section">
+  <div class="container is-max-desktop">
 
-      <h3 class="title is-4 is-centered has-text-centered">No Sequenceness During Post‑Learning Rest</h3>
+      <h3 class="title is-4 is-centered has-text-centered">No Sequenceness During Post-Learning Rest</h3>
       <p>We applied the trained decoders to the control resting state and the post-learning resting state, expecting replay of sequences to occur during post-learning resting state. The result (a probability estimate of each 10 images/classes for each time point of the resting state) was fed into TDLM to detect sequentiality of reactivations. However, we found <strong>no forward or backward sequenceness</strong> within either 8-minute resting state</p>
       <figure>
         <img src="./images/sequenceness-rs.png" alt="Sequenceness curves" style="max-width:100%">
