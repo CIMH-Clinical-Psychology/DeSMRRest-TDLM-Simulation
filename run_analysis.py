@@ -110,7 +110,7 @@ rs2 = {}
 neg_x = {}  # pre-audio fixation cross neg_x of localizer
 seqs = {}  # load sequences of that participant in this dict
 
-for subj in tqdm(subjects[::-1], desc="Loading data"):
+for subj in tqdm(subjects, desc="Loading data"):
     # data used for the localizer
     localizer[subj] = load_localizers_seq12(subj=subj, sfreq=sfreq, bands=bands, autoreject=settings.default_autoreject, ica=settings.default_ica_components)
     # negative examples from the fixation cross before audio cue onset
