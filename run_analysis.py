@@ -18,7 +18,9 @@ import seaborn as sns
 import pandas as pd
 import mne
 import mat73
-from meg_utils import plotting
+from meg_utils import plotting, sigproc, decoding
+from scipy import signal
+from scipy.ndimage import gaussian_filter1d
 
 from mne.stats import permutation_cluster_1samp_test
 import joblib
@@ -31,6 +33,17 @@ from utils import plot_correlation, zscore_multiaxis
 from scipy.stats import ttest_rel
 from scipy import stats
 from statsmodels.stats.multitest import multipletests
+import warnings
+warnings.filterwarnings(
+    "ignore",
+    message="Mean of empty slice",
+    category=RuntimeWarning,
+)
+warnings.filterwarnings(
+    "ignore",
+    message="invalid value encountered in divide",
+    category=RuntimeWarning,
+)
 
 utils.lowpriority()  # make sure not to clog CPU on multi-user systems
 #%% Settings
@@ -83,7 +96,7 @@ mode = 'erp_diff_all'
 lag_sim = 8  # simulate replay at 80 milliseconds
 sequence = tdlm.utils.char2num(settings.seq_12)[:-1]
 tp = 31
-
+best_C = 9.1
 
 if not final_calculation:
     print('not running final calculation yet, only use this for final paper calculation')
@@ -443,6 +456,10 @@ fig.savefig(results_dir + "/classifier-transfer.svg")
 fig.savefig(results_dir + "/classifier-transfer.png")
 
 
+
+
+
+
 #%% RS1 vs RS2
 
 tp = np.mean(list(best_tp.values())).astype(int)
@@ -521,8 +538,6 @@ for s, subj in enumerate(subjects_incl):
             df_sequenceness = pd.concat([df_sequenceness, df_tmp],
                                         ignore_index=True)
 compress_pickle.dump(df_sequenceness, pkl_sequencenes)
-
-
 #%% RS1RS2 seq in one plot
 
 df_rs1rs2 = pd.DataFrame()
@@ -1977,3 +1992,410 @@ plotting.normalize_lims(list(axs))
 fig.tight_layout()
 plt.pause(0.1)
 fig.savefig(settings.plot_dir + f'localizer_perclass.png')
+
+
+#%% EXTRA RS1 vs RS2 with alphafilter
+
+# tp = np.mean(list(best_tp.values())).astype(int)
+
+clf.set_params(C=best_C)
+# put forward and backward sequenceness per subject for RS1/RS2 in these arrays
+rs1_sf = np.full([len(subjects_incl), n_shuf, max_lag+1], np.nan)
+rs1_sb = np.full([len(subjects_incl), n_shuf, max_lag+1], np.nan)
+rs2_sf = np.full([len(subjects_incl), n_shuf, max_lag+1], np.nan)
+rs2_sb = np.full([len(subjects_incl), n_shuf, max_lag+1], np.nan)
+
+rs1_sf_filt = np.full([len(subjects_incl), n_shuf, max_lag+1], np.nan)
+rs1_sb_filt = np.full([len(subjects_incl), n_shuf, max_lag+1], np.nan)
+rs2_sf_filt = np.full([len(subjects_incl), n_shuf, max_lag+1], np.nan)
+rs2_sb_filt = np.full([len(subjects_incl), n_shuf, max_lag+1], np.nan)
+
+# spectrum of probas
+psd_rs1, psd_rs2           = [], []      # raw
+psd_rs1_filt, psd_rs2_filt = [], []     # notch-filtered
+
+# corr coeffs
+corrcoefs_rs1 = [] # store correlation coefficients
+corrcoefs_rs2 = [] # store correlation coefficients
+
+fig, axs = plt.subplots(1, 3, figsize=[12, 6])
+fig_spec, ax_spec = plt.subplots(1, 2, figsize=(10, 3), sharey=True)
+
+for i, subj in enumerate(tqdm(subjects_incl, desc="subject")):
+    # train our classifier using localizer data and negative data
+    train_x, train_y = localizer[subj]
+    clf.fit(train_x[:, :, tp], train_y, neg_x=neg_x[subj], neg_x_ratio=2.0)
+
+    # get probability estimates for item reactivation from the resting state
+    proba_rs1 = clf.predict_proba(rs1[subj])
+    proba_rs2 = clf.predict_proba(rs2[subj])
+
+    # normalize probabilities
+    proba_rs1 = eval(proba_norm)(proba_rs1)
+    proba_rs2 = eval(proba_norm)(proba_rs2)
+
+
+    # sort the stimulus order to be comparable across subjects
+    names = utils.get_image_names(subj)
+    img_idx = [names.index(img) for img in settings.stim_translation]
+
+    # create correlation across stimuli
+    corr_rs1 = np.corrcoef(proba_rs1.T[img_idx])
+    corr_rs2 = np.corrcoef(proba_rs2.T[img_idx])
+
+    corrcoefs_rs1 += [corr_rs1]
+    corrcoefs_rs2 += [corr_rs2]
+
+
+    for ax in axs.flat: ax.clear()
+    axs[0].imshow(corr_rs1)
+    axs[0].set_title('RS pre')
+    axs[1].imshow(corr_rs2)
+    axs[1].set_title('RS post')
+    axs[2].imshow(corr_rs2 - corr_rs1)
+    axs[2].set_title('diff')
+    for ax in axs.flat:
+        ax.set_xticks(np.arange(10), settings.stim_translation, rotation=90)
+        ax.set_yticks(np.arange(10), settings.stim_translation)
+    fig.suptitle(f'Normalized probas correlation coefficients for {subj=}')
+    utils.savefig(fig,  f'/corrcoeff/corrcoef_{subj}.png')
+
+    # calculate sequenceness
+    seed = utils.get_id(subj)*42
+
+    rs1_sf_subj, rs1_sb_subj = tdlm.compute_1step(proba_rs1, tf=tf, n_shuf=n_shuf,
+                                                  max_lag=max_lag, alpha_freq=alpha_freq,
+                                                  seed=seed)
+    rs2_sf_subj, rs2_sb_subj = tdlm.compute_1step(proba_rs2, tf=tf, n_shuf=n_shuf,
+                                                  max_lag=max_lag, alpha_freq=alpha_freq,
+                                                  seed=seed+1)
+
+    alpha_peak1 = sigproc.get_alpha_peak(rs1[subj].T, sfreq=100)
+    alpha_peak2 = sigproc.get_alpha_peak(rs2[subj].T, sfreq=100)
+
+    # zscore sequenceness scores
+    rs1_sf[i, :] = zscore_multiaxis(rs1_sf_subj, axes=zscore_axes)
+    rs1_sb[i, :] = zscore_multiaxis(rs1_sb_subj, axes=zscore_axes)
+    rs2_sf[i, :] = zscore_multiaxis(rs2_sf_subj, axes=zscore_axes)
+    rs2_sb[i, :] = zscore_multiaxis(rs2_sb_subj, axes=zscore_axes)
+
+
+    # next same for filtered data
+    # Apply notch filter at 10 Hz
+    rs1_filt = sigproc.notch(rs1[subj].T, freqs=[alpha_peak1], notch_widths=3, sfreq=sfreq, n_jobs=1).T
+    rs2_filt = sigproc.notch(rs2[subj].T, freqs=[alpha_peak2], notch_widths=3, sfreq=sfreq, n_jobs=1).T
+
+    # Get probability estimates for filtered data
+    proba_rs1_filt = clf.predict_proba(rs1_filt)
+    proba_rs2_filt = clf.predict_proba(rs2_filt)
+
+    # Normalize
+    proba_rs1_filt = eval(proba_norm)(proba_rs1_filt)
+    proba_rs2_filt = eval(proba_norm)(proba_rs2_filt)
+
+    # Compute sequenceness on filtered data
+    rs1_sf_filt_subj, rs1_sb_filt_subj = tdlm.compute_1step(proba_rs1_filt, tf=tf, n_shuf=n_shuf,
+                                                            max_lag=max_lag, alpha_freq=alpha_freq,
+                                                            seed=seed+2)
+    rs2_sf_filt_subj, rs2_sb_filt_subj = tdlm.compute_1step(proba_rs2_filt, tf=tf, n_shuf=n_shuf,
+                                                            max_lag=max_lag, alpha_freq=alpha_freq,
+                                                            seed=seed+3)
+
+    # Z-score and store filtered results
+    rs1_sf_filt[i, :] = zscore_multiaxis(rs1_sf_filt_subj, axes=zscore_axes)
+    rs1_sb_filt[i, :] = zscore_multiaxis(rs1_sb_filt_subj, axes=zscore_axes)
+    rs2_sf_filt[i, :] = zscore_multiaxis(rs2_sf_filt_subj, axes=zscore_axes)
+    rs2_sb_filt[i, :] = zscore_multiaxis(rs2_sb_filt_subj, axes=zscore_axes)
+
+    # calculate spectrograms of probabilities
+    fs     = sfreq                         # sampling rate already in your config
+    nper   = 2 ** 10                      # 4096-point segments; tweak if mem-heavy
+    freqs, Pxx_rs1       = signal.welch(proba_rs1,       fs=fs, nperseg=nper, axis=0)
+    _,     Pxx_rs2       = signal.welch(proba_rs2,       fs=fs, nperseg=nper, axis=0)
+    _,     Pxx_rs1f      = signal.welch(proba_rs1_filt,  fs=fs, nperseg=nper, axis=0)
+    _,     Pxx_rs2f      = signal.welch(proba_rs2_filt,  fs=fs, nperseg=nper, axis=0)
+
+    Pxx_rs1 = np.log10(Pxx_rs1).mean(1)
+    Pxx_rs2 = np.log10(Pxx_rs2).mean(1)
+    Pxx_rs1f = np.log10(Pxx_rs1f).mean(1)
+    Pxx_rs2f = np.log10(Pxx_rs2f).mean(1)
+    Pxx_rs1  = gaussian_filter1d(Pxx_rs1,  sigma=5)
+    Pxx_rs2  = gaussian_filter1d(Pxx_rs2,  sigma=5)
+    Pxx_rs1f = gaussian_filter1d(Pxx_rs1f, sigma=5)
+    Pxx_rs2f = gaussian_filter1d(Pxx_rs2f, sigma=5)
+
+    mask = freqs <= 35                    # keep 0-35 Hz only
+    psd_rs1.append(Pxx_rs1[mask])
+    psd_rs2.append(Pxx_rs2[mask])
+    psd_rs1_filt.append(Pxx_rs1f[mask])
+    psd_rs2_filt.append(Pxx_rs2f[mask])
+
+    # OPTIONAL PER-SUBJECT FIG
+    for ax in ax_spec: ax.clear()
+    ax_spec[0].plot(freqs[mask], Pxx_rs1[mask],  label='raw')
+    ax_spec[0].plot(freqs[mask], Pxx_rs1f[mask], label='notch 10 Hz')
+    ax_spec[0].set(title='RS1', xlim=(0, 25), xlabel='Hz', ylabel='PSD')
+    ax_spec[1].plot(freqs[mask], Pxx_rs2[mask],  label='raw')
+    ax_spec[1].plot(freqs[mask], Pxx_rs2f[mask], label='notch 10 Hz')
+    ax_spec[1].set(title='RS2', xlim=(0, 25), xlabel='Hz')
+    ax_spec[1].legend(frameon=False)
+    # for ax in ax_spec: ax.set_ylim(0, 0.5)
+    utils.savefig(fig_spec, f'/spectrum/proba_spectrum_{subj}.png')
+
+    utils.plot_rest_state_spectrograms(rs1[subj],
+                                       rs1_filt,
+                                       rs2[subj],
+                                       rs2_filt,
+                                       sfreq=100,
+                                       chan_idx = 234,
+                                       subj=subj)
+
+
+for ax in axs.flat: ax.clear()
+axs[0].imshow(corr_rs1)
+axs[0].set_title('RS pre')
+axs[1].imshow(corr_rs2)
+axs[1].set_title('RS post')
+axs[2].imshow(corr_rs2 - corr_rs1)
+axs[2].set_title('diff')
+for ax in axs.flat:
+    ax.set_xticks(np.arange(10), settings.stim_translation, rotation=90)
+    ax.set_yticks(np.arange(10), settings.stim_translation)
+fig.suptitle(f'Normalized proba correlation coefficients for n={len(subjects_incl)}')
+utils.savefig(fig,  f'/corrcoeff/corrcoef_all.png')
+
+for ax in ax_spec.flat: ax.clear()
+ax_spec[0].plot(freqs[mask], Pxx_rs1[mask],  label='raw')
+ax_spec[0].plot(freqs[mask], Pxx_rs1f[mask], label='notch 10 Hz')
+ax_spec[0].set(title='RS1', xlim=(0, 35), xlabel='Hz', ylabel='PSD')
+ax_spec[1].plot(freqs[mask], Pxx_rs2[mask],  label='raw')
+ax_spec[1].plot(freqs[mask], Pxx_rs2f[mask], label='notch 10 Hz')
+ax_spec[1].set(title='RS2', xlim=(0, 35), xlabel='Hz')
+ax_spec[1].legend(frameon=False)
+fig_spec.suptitle('Spectrum of probabilities')
+utils.savefig(fig_spec, f'/spectrum/proba_spectrum_{subj}.png')
+
+sns.set_context('talk')
+fig, axes = plt.subplots(2, 2, figsize=(12, 8), sharex=True, sharey=True)
+
+# convenience for iterating
+c_fwd = [sns.color_palette("bright")[1], sns.color_palette('dark')[1]]
+c_bkw = [sns.color_palette("bright")[2], sns.color_palette('dark')[2]]
+
+cfg = [
+    # row, col, label, forward data, backward data
+    (0, 0, 'RS1 FWD', rs1_sf,       rs1_sb,       'C0', True),
+    (0, 0, None,      rs1_sf_filt,  rs1_sb_filt,  'C1', False),
+    (0, 1, 'RS1 BKW', rs1_sf,       rs1_sb,       'C0', True,  ['bkw']),
+    (0, 1, None,      rs1_sf_filt,  rs1_sb_filt,  'C1', False, ['bkw']),
+    (1, 0, 'RS2 FWD', rs2_sf,       rs2_sb,       'C0', True),
+    (1, 0, None,      rs2_sf_filt,  rs2_sb_filt,  'C1', False),
+    (1, 1, 'RS2 BKW', rs2_sf,       rs2_sb,       'C0', True,  ['bkw']),
+    (1, 1, None,      rs2_sf_filt,  rs2_sb_filt,  'C1', False, ['bkw']),
+]
+
+import matplotlib as mpl
+for row, col, title, fwd, bkw, color, clear, *which in cfg:
+    which = which[0] if which else ['fwd']
+    ax = axes[row, col]
+    tdlm.plot_sequenceness(
+        fwd, bkw, sfreq=sfreq, ax=ax, title=title,
+        color=color, which=which, clear=clear, despine=False,
+        legend=False
+    )
+
+# global legend
+handles = [
+    mpl.lines.Line2D([], [], color='C0', label='raw'),
+    mpl.lines.Line2D([], [], color='C1', label='notch 10 Hz')
+]
+fig.legend(handles=handles, loc='upper right', frameon=False)
+
+sns.despine()
+fig.tight_layout(rect=[0, 0, 0.95, 1])
+
+#%% EXTRA: C ~ zero-lag correlation
+
+Cs = np.logspace(-1, 2, 50)                 # 1e‑3 … 1e3
+nC, nS = len(Cs), len(subjects_incl)
+mean_off  = np.empty((nS, nC))              # per‑subject metrics
+beta_corr = np.empty_like(mean_off)
+
+mean_off.fill(np.nan); beta_corr.fill(np.nan)
+clf.set_params(max_iter=100)
+
+tqdm_loop = tqdm(total=len(subjects)*len(Cs))
+
+df_seq = pd.DataFrame()
+df_reg = pd.DataFrame()
+from scipy.stats import zscore
+
+for si, subj in enumerate(subjects_incl):
+    train_x, train_y = localizer[subj]
+    rs_data      = rs1[subj]                # use RS1; swap if needed
+
+    # subject‑specific stimulus order
+    img_idx = [utils.get_image_names(subj).index(img) for img in settings.stim_translation]
+
+    for ci, C in enumerate(Cs):
+        clf.set_params(C=C).fit(train_x[:, :, tp], train_y)
+        proba = eval(proba_norm)(clf.predict_proba(rs_data))
+        colinear = decoding.get_mean_corrcoef(proba.T)
+        spatcorr = decoding.get_mean_corrcoef(clf.coef_)
+
+        df_reg = pd.concat([df_reg, pd.DataFrame({'C': C,
+                                                  'subj':subj,
+                                                  'colinear': colinear,
+                                                  'spatcorr': spatcorr
+                                                  }, index=[0])], ignore_index=True)
+
+        sf, sb = tdlm.compute_1step(proba, tf, n_shuf=0, alpha_freq=10)
+        sf = zscore(sf.squeeze(), nan_policy='omit')
+        sb = zscore(sb.squeeze(), nan_policy='omit')
+
+        df_tmp = pd.DataFrame({'C': C,
+                               'direction': ['fwd', 'bkw'],
+                               'max': [np.nanmax(sf), np.nanmax(sb)],
+                               'min': [np.nanmin(sf), np.nanmin(sb)],
+                               'abs': [np.nanmax(abs(sf)), np.nanmax(abs(sb))],
+                               'subj': subj
+                               })
+        df_seq = pd.concat([df_seq, df_tmp], ignore_index=True)
+        tqdm_loop.update()
+
+
+compress_pickle.dump([df_reg, df_seq], settings.cache_dir + '/df_c_spatcorr.pkl.gz')
+
+df_reg, df_seq = compress_pickle.load(settings.cache_dir + '/df_c_spatcorr.pkl.gz')
+
+df_reg_long = df_reg.melt(id_vars=['subj','C'], value_vars=['colinear','spatcorr'],
+                          var_name='metric', value_name='value')
+
+plt.figure(figsize=(5,3))
+ax = sns.lineplot(data=df_reg_long, x='C', y='value', hue='metric', estimator='mean', errorbar='se')
+ax.set(xscale='log', xlabel='L1 regularization (C)', ylabel='correlation')
+ax.legend(title=None, loc='upper center', bbox_to_anchor=(0.5,1.25), ncol=2)
+sns.despine()
+plt.tight_layout()
+utils.savefig(plt.gcf(), 'reg_corr_seaborn.png')
+
+# 2. sequenceness vs metrics on separate axes
+df_seqx = df_seq.merge(df_reg, on=['C','subj'])
+df_seq_long = df_seqx.melt(id_vars=['C','subj','direction','colinear','spatcorr'],
+                          value_vars=['max','min','abs'],
+                          var_name='seq_metric', value_name='seq_value')
+
+preds = {'colinear':'Probability corrcoef',
+         'spatcorr':'Sensor spatial corr',
+         'C':'L1 reg (C)'}
+
+for pred, label in preds.items():
+    fig, axes = plt.subplots(1,3, figsize=(12,3), sharey=False)
+    for i, seq_metric in enumerate(['max','min','abs']):
+        ax = axes[i]
+        sns.regplot(data=df_seqx, x=pred, y=seq_metric, ax=ax, scatter_kws={'s':20,'alpha':0.5})
+        ax.set(title=f'{seq_metric} vs {label}', xlabel=label, ylabel='sequenceness', xscale='log')
+    fig.tight_layout()
+    utils.savefig(fig, f'seq_vs_{pred}.png')
+
+#%% EXTRA: heatmap of sequenceness
+
+
+for C in [0.01, 0.1, 1, 5, 9.1, 20]:
+    clf.set_params(C=C)
+    # ----- config --------------------------------------------------------------
+    timepoints = np.arange(61)  # training tps (samples)
+
+    # containers  (shape: n_time × n_lag)
+    rs1_seqx = []
+    rs2_seqx = []
+
+
+    def train_predict_index(train_x, train_y, test_x, clf, proba, t):
+        """helper func for making the time a parameter, much faster for joblib"""
+        return decoding.train_predict(train_x[:, :, t], train_y, test_x, clf=clf,proba=proba)
+
+    # ----- sweep training time‑points ------------------------------------------
+    pool = Parallel(8)
+
+    for subj in tqdm(subjects_incl):
+
+        train_x, train_y = localizer[subj]
+
+        rs1_probas = pool(delayed(train_predict_index)
+                                  (train_x, train_y, rs1[subj],
+                                   clf=clf, proba=True, t=t) for t in timepoints)
+
+        rs2_probas = pool(delayed(train_predict_index)
+                                  (train_x, train_y, rs2[subj],
+                                   clf=clf, proba=True, t=t) for t in timepoints)
+
+        rs1_res = pool(delayed(tdlm.compute_1step)(probas, tf, n_shuf=100,
+                                                   max_lag=max_lag, alpha_freq=10) for probas in rs1_probas)
+
+        rs2_res = pool(delayed(tdlm.compute_1step)(probas, tf, n_shuf=100,
+                                                   max_lag=max_lag, alpha_freq=10) for probas in rs2_probas)
+
+        rs1_seqx += [rs1_res]
+        rs2_seqx += [rs2_res]
+
+
+    # ----- plotting -------------------------------------------------------------
+    rs1_seq = np.squeeze(rs1_seqx)
+    rs2_seq = np.squeeze(rs2_seqx)
+
+    rs1_all =  np.concatenate([np.nanmean(rs1_seq, axis=0),
+                               np.nanmean(rs1_seq[:,:,:1,:]-rs1_seq[:,:,1:,: ], axis=0)], axis=1)
+    rs2_all =  np.concatenate([np.nanmean(rs2_seq, axis=0),
+                               np.nanmean(rs2_seq[:,:,:1,:]-rs2_seq[:,:,1:,: ], axis=0)], axis=1)
+
+
+    fig, axs = plt.subplots(2, 3, figsize=(12, 6), sharex=True, sharey=True)
+
+    rs_names = ['RS pre', 'RS post']
+    dirs = ['fwd', 'bkw', 'diff']
+
+    for i, rs in enumerate([rs1_all, rs2_all]):
+        for j, sx in enumerate(rs.swapaxes(0,1)):
+            ax = axs[i, j]
+            df = pd.DataFrame(sx[:, 0, :], columns=np.arange(max_lag+1)*10,
+                              index=(np.arange(61)-10)*10)
+            sns.heatmap(df, ax=ax, cbar=False, cmap='vlag')
+            ax.set(xlabel='time lag', ylabel='train timepoint', title=f'{rs_names[i]} - {dirs[j]}')
+    plotting.normalize_lims(axs, 'v')
+    fig.suptitle(f'Sequenceness as function of train timepoint (no zscore) {C=}')
+    utils.savefig(fig, f'/heatmap/train_timepoint_sequencess_no_zscore_C{C}.png')
+
+
+    ###### with ZSCORE
+    for axis in [0, -1]:
+        name = ['population', 'time'][axis]
+        from scipy.stats import zscore
+        rs1_seq = np.squeeze(rs1_seqx)
+        rs2_seq = np.squeeze(rs2_seqx)
+
+        rs1_seq[:,:,0, :, :] = zscore(rs1_seq[:,:,0, :, :], nan_policy='omit', axis=axis)
+        rs1_seq[:,:,1, :, :] = zscore(rs1_seq[:,:,1, :, :], nan_policy='omit', axis=axis)
+        rs2_seq[:,:,0, :, :] = zscore(rs2_seq[:,:,0, :, :], nan_policy='omit', axis=axis)
+        rs2_seq[:,:,1, :, :] = zscore(rs2_seq[:,:,1, :, :], nan_policy='omit', axis=axis)
+
+        rs1_all =  np.concatenate([np.nanmean(rs1_seq, axis=0),
+                                   np.nanmean(rs1_seq[:,:,:1,:]-rs1_seq[:,:,1:,: ], axis=0)], axis=1)
+        rs2_all =  np.concatenate([np.nanmean(rs2_seq, axis=0),
+                                   np.nanmean(rs2_seq[:,:,:1,:]-rs2_seq[:,:,1:,: ], axis=0)], axis=1)
+
+        fig, axs = plt.subplots(2, 3, figsize=(12, 6), sharex=True, sharey=True)
+
+        rs_names = ['RS pre', 'RS post']
+        dirs = ['fwd', 'bkw', 'diff']
+
+        for i, rs in enumerate([rs1_all, rs2_all]):
+            for j, sx in enumerate(rs.swapaxes(0,1)):
+                ax = axs[i, j]
+                df = pd.DataFrame(sx[:, 0, :], columns=np.arange(max_lag+1)*10,
+                                  index=(np.arange(61)-10)*10)
+                sns.heatmap(df, ax=ax, cbar=False, cmap='vlag')
+                ax.set(xlabel='time lag', ylabel='train timepoint', title=f'{rs_names[i]} - {dirs[j]}')
+        plotting.normalize_lims(axs, 'v')
+        fig.suptitle(f'Sequenceness as function of train timepoint (zscore across {axis=} {name}) {C=}')
+        utils.savefig(fig, f'/heatmap/train_timepoint_sequencess_zscore-axis{axis}_C{C}.png')

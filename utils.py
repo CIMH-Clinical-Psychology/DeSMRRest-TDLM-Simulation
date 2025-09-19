@@ -31,12 +31,88 @@ from scipy import stats
 from scipy.stats import pearsonr, zscore
 from tqdm import tqdm
 from scipy.stats import t
-
+from sleep_utils import specgram_multitaper
 import settings
 
 # cache some static results here
 memory = Memory(settings.cache_dir if settings.caching_enabled else None)
 
+
+def plot_rest_state_spectrograms(rs1_orig,
+                                 rs1_filt,
+                                 rs2_orig,
+                                 rs2_filt,
+                                 *,
+                                 sfreq: float,
+                                 chan_idx: int = 0,
+                                 subj = None,):
+    """Plot a 4‑panel multitaper spectrogram (RS1 / RS1_filt / RS2 / RS2_filt).
+
+    Parameters
+    ----------
+    rs1, rs1_filt, rs2, rs2_filt : ndarray (n_times, n_channels)
+        Resting‑state data (raw and notch‑filtered).
+    sfreq : float
+        Sampling frequency in Hz.
+    chan_idx : int, default 0
+        Index of the exemplar channel to visualise.
+    subj : str | int | None, optional
+        Subject identifier for labelling / filenames.
+    out_dir : str, default "spectrograms"
+        Directory where the PNG will be written (created if absent).
+
+    Returns
+    -------
+    matplotlib.figure.Figure
+        The figure object containing the 2×2 spectrogram grid.
+    """
+
+
+    fig, axs = plt.subplots(2, 2, figsize=(14, 8), sharex=True, sharey=True)
+    titles = ("RS1", "RS1 notch", "RS2", "RS2 notch")
+    data_streams = (
+        rs1_orig[:, chan_idx],
+        rs1_filt[:, chan_idx],
+        rs2_orig[:, chan_idx],
+        rs2_filt[:, chan_idx],
+    )
+
+    # default multitaper parameters — can be overridden via **sg_kwargs
+
+    for ax, d, ttl in zip(axs.flat, data_streams, titles):
+        specgram_multitaper(
+            d,
+            sfreq,
+            sperseg=20,
+            perc_overlap=4/5,
+            ufreq=40,
+            show_plot=True,  # we manage drawing on the supplied ax
+            ax=ax,
+            title=ttl,
+        )
+
+    vmin = min([ax.images[-1].get_clim()[0] for ax in axs.flat])
+    vmax = max([ax.images[-1].get_clim()[1] for ax in axs.flat])
+    for i, ax in enumerate(axs.flat):
+        if i%2:
+            ax.images[-1].set_clim(vmin*7, vmax)
+
+
+    for ax in axs[:, 0]:  # left column
+        ax.set_ylabel("Frequency (Hz)")
+    for ax in axs[1, :]:  # bottom row
+        ax.set_xlabel("Time (s)")
+
+    if subj is not None:
+        fig.suptitle(f"Spectrogram (ch {chan_idx}) — {subj}")
+    else:
+        fig.suptitle(f"Spectrogram (ch {chan_idx})")
+
+    fig.tight_layout()
+
+    # save a high‑resolution copy for later inspection
+    savefig(fig, f"spectrum/{subj}_ch{chan_idx}.png")
+    return fig
 
 def calculate_r_threshold(n, alpha=0.05):
     # Degrees of freedom
@@ -262,6 +338,7 @@ def get_responses(subj):
     assert "DSMR" in subj, "subj must contain DSMR, but is {subj=}"
     subj_dict = json_load(f"./data/{subj}.json")
     df_blocks = pd.DataFrame(subj_dict['blocks'])
+    df_blocks['accuracy'] = df_blocks.Correct==df_blocks.Choice
     return df_blocks
 
 @memory.cache
@@ -562,7 +639,7 @@ def savefig(fig, filename, tight=True, despine=True):
         fig.tight_layout()
     plt.pause(0.1)
     if settings.plot_dir in filename:
-        raise ValueError(f'{filename} does not contain the plot dir')
+        raise ValueError(f'{filename} does contains the plot dir, not necessary')
     out_dir = f'{settings.plot_dir}/{os.path.dirname(filename)}'
     os.makedirs(out_dir, exist_ok=True)
     if not filename.endswith(('png', 'jpg', 'svg', 'eps')):
