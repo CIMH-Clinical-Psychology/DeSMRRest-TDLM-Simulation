@@ -77,7 +77,7 @@ def load_localizers_seq12(subj, **kwargs):
     event_ids = kwargs.get("event_ids", np.arange(1, 11))
     files = list_files(settings.data_dir, patterns=f"{subj}_localizer*fif")
     assert len(files) >= 2
-    logging.info("loading localizer")
+    # logging.info("loading localizer")
     data_localizer = [
         load_epochs_bands(
             f,
@@ -123,7 +123,7 @@ def load_neg_x_before_audio_onset(subj, **kwargs):
 
 
 def _load_RS(subj, patterns, final_calculation=False, n_seg=None, **kwargs):
-    logging.info(f'loading RS {patterns=}, {final_calculation=}')
+    # logging.info(f'loading RS {patterns=}, {final_calculation=}')
     kwargs = dict(default_kwargs.copy(), **kwargs)
     ica = kwargs['ica']
     picks = kwargs['picks']
@@ -142,7 +142,7 @@ def _load_RS(subj, patterns, final_calculation=False, n_seg=None, **kwargs):
 
     first_seg = 0 if subj_id<=117 else 1
     if final_calculation:
-        warnings.warn('Running on left-out data of RS')
+        # warnings.warn('Running on left-out data of RS')
         first_seg = int(not first_seg) # shift order if running on validation set
 
     log_append(rs_file[0], 'load_func', {'final_calculation':final_calculation,

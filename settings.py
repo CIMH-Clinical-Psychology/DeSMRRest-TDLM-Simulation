@@ -121,26 +121,30 @@ host     = platform.node().lower()    # the name of this computer
 system   = platform.system().lower()  # linux, windows or mac.
 home = os.path.expanduser('~')
 
+SLURM_JOB_ID = os.environ.get('SLURM_JOB_ID')
 
-data_dir = "."  # enter directory here where the data has been stored
+curr_dir = os.path.dirname(__file__)
 
 # machine specific configuration overwrites general directory structure
-if username == 'simon.kern' and host=='zislrds0035.zi.local':  # simons VM
-    cache_dir = f'/data/joblib-resting-state/'
-    data_dir = '/zi/flstorage/group_klips/data/data/Simon/DeSMRRest/upload/'
-    plot_dir = f'{home}/Nextcloud/ZI/2023.10 TDLMSimulation/DeSMRRest-RestingState/plots'
-
-elif username == 'simon.kern' and host=='5cd320lfh8':
+if username == 'simon.kern' and host=='5cd320lfh8':
     cache_dir = f'{home}/Desktop/joblib-resting-state/'
     data_dir = "W:/group_klips/data/data/Simon/DeSMRRest/upload/"
-
+elif username == 'simon.kern':  # any other VM
+    # if SLURM_JOB_ID:
+        # cache_dir = f'/data/{SLURM_JOB_ID}/joblib-resting-state/'
+    # else:
+    cache_dir = f'{home}/joblib-resting-state/'
+    data_dir = '/zi/flstorage/group_klips/data/data/Simon/DeSMRRest/upload/'
+    plot_dir = f'{home}/tdlm-reboot/plots/'
 
 elif username == 'simon' and host in ('thinkpad-simon', 'desktop-dakomj2'):
     cache_dir = f'z:/joblib-simulation/'
     data_dir = "z:"
 else:
-    warnings.warn('No user specific settings found in settings.py')
+    warnings.warn(f'No user specific settings found in settings.py for {username=} {host=}')
 
+if 'data_dir' not in locals():
+    raise Exception('No data_dir in settings.py!')
 
 #%% checks for stuff
 if 'cache_dir' not in locals():
@@ -165,10 +169,10 @@ if not os.path.isdir(plot_dir):
     os.makedirs(plot_dir, exist_ok=True)
 if not os.path.isdir(log_dir):
     warnings.warn(f"log_dir does not exist at {log_dir}, create")
-    os.makedirs(log_dir, exist_ok=True)
+    # os.makedirs(log_dir, exist_ok=True)
 if not os.path.isdir(results_dir):
     warnings.warn(f"log_dir does not exist at {log_dir}, create")
-    os.makedirs(results_dir, exist_ok=True)
+    # os.makedirs(results_dir, exist_ok=True)
 
 if get_free_space(cache_dir) < 20:
     raise RuntimeError(f"Free space for {cache_dir} is below 20GB. Cannot safely run.")
@@ -901,3 +905,47 @@ ch_names =  ['MEG0111',
  'MEG2641',
  'MEG2642',
  'MEG2643']
+
+def char2num(seq):
+    """convert list of chars to integers eg ABC=>012"""
+    if isinstance(seq, str):
+        seq = list(seq)
+    assert ord('A')-65 == 0
+    nums = [ord(c.upper())-65 for c in seq]
+    assert all([0<=n<=90 for n in nums])
+    return nums
+
+def num2char(arr):
+    """convert list of ints to alphabetical chars eg 012=>ABC"""
+    if isinstance(arr, int):
+        return chr(arr+65)
+    arr = np.array(arr, dtype=int)
+    return np.array([chr(x+65) for x in arr.ravel()]).reshape(*arr.shape)
+
+def seq2tf(sequence, n_states=None):
+    """
+    create a transition matrix from a sequence string,
+    e.g. ABCDEFG
+    Please note that sequences will not be wrapping automatically,
+    i.e. a wrapping sequence should be denoted by appending the first state.
+
+    :param sequence: sequence in format "ABCD..."
+    :param seqlen: if not all states are part of the sequence,
+                   the number of states can be specified
+                   e.g. if the sequence is ABE, but there are also states F,G
+                   n_states would be 7
+
+    """
+
+    seq = char2num(sequence)
+    if n_states is None:
+        n_states = max(seq)+1
+    # assert max(seq)+1==n_states, 'not all positions have a transition'
+    TF = np.zeros([n_states, n_states], dtype=int)
+    for i, p1 in enumerate(seq):
+        if i+1>=len(seq): continue
+        p2 = seq[(i+1) % len(seq)]
+        TF[p1, p2] = 1
+    return TF.astype(float)
+
+transition_matrix = seq2tf(seq_12)

@@ -77,6 +77,7 @@ palette = sns.color_palette()
 c_fwd = palette[1]
 c_bkw = palette[2]
 
+
 #%% define TDLM parameters
 n_shuf = 1000  # do 1000 permutations
 max_lag = 30  # 500 ms time lag maximum
@@ -116,6 +117,8 @@ meanprops = {
 palette = sns.color_palette("ch:start=.2,rot=-.3", n_colors=101)
 hues = {subj:palette[int(100*(get_performance(subj)-0.5)*2)] for subj in subjects}
 
+# gaussian window created by gaussian_filter1d(np.float_([0,0,1,0,0]), 1)
+gaussian_weighting = [0.05842299, 0.24210528, 1, 0.24210528, 0.05842299]
 #%% preload some data (e.g. localizer)
 localizer = {}  # localizer training data
 rs1 = {}
@@ -589,7 +592,14 @@ tdlm.plot_sequenceness(rs2_sf, rs2_sb, which='bkw', title=f'Backward Sequencenes
 for ax in (axs_seq:=[axs['1'], axs['2']]):
     ax.set_ylabel('sequenceness\n(u.u., zscored)')
     ax.set_xlabel('time lag (milliseconds)')
-    ax.legend(['Control', '_', '_', '_', '_', 'Post-Learn'],  loc='lower right')
+    ax.legend(handles=[ln for ln in ax.lines if ln.get_label()])
+    ax.plot([0, 0.000001], [0, .000000001], color='gray', linestyle='--', linewidth=1)  # just for legend creation
+    ax.plot([0, 0.000001], [0, .000000001], color='gray', linestyle='--', linewidth=1.5)  # just for legend creation
+    ax.legend(['Control', '_', '_',
+               '_', '_', 'Post-Learn','_', '_','_', '_',
+               '95% perm.', 'Max perm.', 'x', 'y'],
+              loc='lower right',
+              ncols=2, fontsize=12)
 utils.normalize_lims(axs_seq)
 
 for i, direction in enumerate(['forward', 'backward']):
@@ -625,10 +635,10 @@ fig.tight_layout()
 # utils.savefig(fig, f'figure/sequenceness_rs.png')
 
 ## calculate for difference in performance
-fig, axs = plt.subplots(2, 2, figsize=[12,8 ])
+fig2, axs2 = plt.subplots(2, 2, figsize=[12,8 ])
 
 for i, direction in enumerate(['forward', 'backward']):
-    ax = axs[i][0]
+    ax = axs2[i][0]
     c = [c_fwd, c_bkw][i][0]
     rs_pre = [rs1_sf, rs1_sb][i]
     peak_lag =  np.nanargmax(abs(np.nanmean(rs_pre[:, 0, :], 0)))
@@ -638,7 +648,7 @@ for i, direction in enumerate(['forward', 'backward']):
     ax.text(ax.get_xlim()[1], -0.2, f'r={r1:.2f} p={pval1:.3f}', horizontalalignment='right')
     ax.set_ylabel('perf. diff. post-pre')
 
-    ax = axs[i][1]
+    ax = axs2[i][1]
     c = [c_fwd, c_bkw][i][1]
     rs_post = [rs2_sf, rs2_sb][i]
     peak_lag =  np.nanargmax(abs(np.nanmean(rs_post[:, 0, :], 0)))
@@ -647,12 +657,12 @@ for i, direction in enumerate(['forward', 'backward']):
                                  color=c, ax=ax,title=f"Post-Learn")
     ax.text(ax.get_xlim()[1], -0.2, f'r={r1:.2f} p={pval1:.3f}', horizontalalignment='right')
     ax.set_ylabel('perf. diff. post-pre')
-utils.normalize_lims(axs.flatten())
+utils.normalize_lims(axs2.flatten())
 
-fig.suptitle('Correlation between performance deltas and peak sequenceness')
+fig2.suptitle('Correlation between performance deltas and peak sequenceness')
 plt.pause(0.1)
-fig.tight_layout()
-utils.savefig(fig, f'supplement/correlation_pre-post-difference.png')
+fig2.tight_layout()
+utils.savefig(fig2, f'supplement/correlation_pre-post-difference.png')
 
 #%% RS2-RS1 post cluster permutation
 from mne.stats import permutation_cluster_1samp_test
@@ -1048,8 +1058,7 @@ utils.savefig(fig, 'supplement/mean-probability-normalization.png')
 print('Warning, this might take around >16GB of RAM')
 np.random.seed(42)
 
-# gaussian window created by gaussian_filter1d(np.float_([0,0,1,0,0]), 1)
-gaussian_weighting = [0.05842299, 0.24210528, 1, 0.24210528, 0.05842299]
+
 
 # here we define replay densities that we want to simulate
 # replay density is defined in events/minute or events^-1min
@@ -1102,7 +1111,8 @@ for name_perf_scale in names_perf_scale:
                                       distribution='constant',
                                       n_steps=n_steps,
                                       sequence = sequence,
-                                      n_events = n_events) for n_events in n_events_all)
+                                      n_events = n_events,
+                                      rng=n_events+s) for n_events in n_events_all)
 
         # for d, density in enumerate(densities):
 
@@ -1193,7 +1203,7 @@ for name_perf_scale in names_perf_scale:
                 peak_time = np.nanargmax(np.nanmean(np.abs(sx[:, d, 0, :]), 0))
                 peak_sequenceness = sx_subj[peak_time]
                 mean_sequenencess = np.nanmean(sx_subj)
-                seq70 = sx_subj[lag_sim]
+                seq80 = sx_subj[lag_sim]
                 df_tmp = pd.DataFrame({'subject': subj,
                                        'density': density,
                                        'peak': peak_sequenceness,
@@ -1201,7 +1211,7 @@ for name_perf_scale in names_perf_scale:
                                        'peak_time': peak_time,
                                        'direction': direction,
                                        'performance': perf,
-                                       'seq70': seq70,
+                                       'seq80': seq80,
                                         },
                                         index=[subj])
                 df_simulation = pd.concat([df_simulation, df_tmp],
@@ -1232,11 +1242,11 @@ for d, density in enumerate(densities):
     axs['Y'].legend(['backward sequenceness', 'max. perm. thresh.', '_', '95% perm. thresh.'])
 
     # calculate peak sequenceness across participants
-    sf_sim_70 = dict(zip(subjects_incl, sf_sim[:, 0, lag_sim]))
-    sb_sim_70 = dict(zip(subjects_incl, sb_sim[:, 0, lag_sim]))
+    sf_sim_80 = dict(zip(subjects_incl, sf_sim[:, 0, lag_sim]))
+    sb_sim_80 = dict(zip(subjects_incl, sb_sim[:, 0, lag_sim]))
 
-    r1, pval1 = plot_correlation(sf_sim_70, values=perf_test, color=c_fwd, title="performance correlation", ax=axs['B'])
-    r2, pval2 = plot_correlation(sb_sim_70, values=perf_test, color=c_bkw, title="performance correlation", ax=axs['D'])
+    r1, pval1 = plot_correlation(sf_sim_80, values=perf_test, color=c_fwd, title="performance correlation", ax=axs['B'])
+    r2, pval2 = plot_correlation(sb_sim_80, values=perf_test, color=c_bkw, title="performance correlation", ax=axs['D'])
 
     df_correlation = pd.concat([df_correlation,
                                 pd.DataFrame({'r': [r1, r2],
@@ -1332,7 +1342,7 @@ utils.savefig(fig, 'figure/simulation-sequenceness-examples.png')
 # utils.log_fig(fig, f'{settings.plot_dir}/simulation-heatmap.png')
 
 
-#%% 4 peak seq. line graph
+#%% 4a peak seq. line graph
 rs_sim_sf_normed = zscore_multiaxis(rs_sim_sf, axes=zscore_axes)
 fig, ax = plt.subplots(1, 1, figsize=[12, 6])
 threshholds = np.max(abs(np.mean(rs_sim_sf_normed[:, :, 1:, 1:], 0)), -1)
@@ -1361,6 +1371,86 @@ sns.despine()
 fig.suptitle(f'Forward {lag_sim*10} ms sequenceness at simulated replay densities')
 utils.savefig(fig, f'figure/simulation-{lag_sim*10}ms-sequenceness.png')
 
+#%% 4b power analysis
+
+# run a power analysis using the (old) maximum permutation threshold
+# for each sample size: draw 10,000 random samples of simulated participants
+# of that sample size with all simulated densities. Calculate maximum threshold
+# per draw, check if mean is above: power is percentage of positive tests.
+np.random.seed(20251103)  # todays date as random seed
+
+densities = np.arange(0, 210, 10)
+
+pkl_simdensity = settings.cache_dir + f'/simulation-full-linear.pkl.zip'
+
+rs_sim_sf, rs_sim_sb, _ = compress_pickle.load(pkl_simdensity)
+
+rs_sim_sf_normed = zscore_multiaxis(rs_sim_sf, axes=zscore_axes)
+
+n_repetitions = 1000
+sample_sizes = range(15, 200)
+
+def bootstrap(n):
+    rng = np.random.default_rng(n)
+
+    x = rs_sim_sf_normed  # shape (N, D, K, L)
+    N, D = x.shape[0], x.shape[1]
+    x_abs = np.abs(x)
+
+    seq_means = np.empty((n_repetitions, D), dtype=x.dtype)
+    thresh_max = np.empty((n_repetitions, D), dtype=x.dtype)
+    thresh_95 = np.empty((n_repetitions, D), dtype=x.dtype)
+
+    for r in range(n_repetitions):
+        idx = rng.integers(N, size=n)
+
+        S = np.take(x, idx, axis=0)
+        A = np.take(x_abs, idx, axis=0)
+
+        # calculate mean sequenceness across bootstrapped participants for 80ms
+        seq_means[r] = np.nanmean(S[:, :, 0, lag_sim], axis=0)
+
+        # calculate thresholds across all time lags
+        # thresh_max[r] = np.nanmax(A[:, :, 1:, :], axis=(0, 2, 3))
+        # thresh_95[r] = np.nanpercentile(A[:, :, 1:, :], 95, axis=(0, 2, 3))
+
+        threshholds = np.max(abs(np.mean(S[:, :, 1:, 1:], 0)), -1)
+        thresholds_95 = np.quantile(threshholds, 0.95, axis=-1)
+        thresholds_max = np.nanmax(threshholds, axis=-1)
+
+        thresh_95[r] = thresholds_95
+        thresh_max[r] = thresholds_max
+
+    return seq_means, thresh_max, thresh_95
+
+
+res = Parallel(-1)(delayed(bootstrap)(n) for n in tqdm(sample_sizes))
+
+means, thmax, th95 = map(np.array, zip(*res))
+
+powermap_max = pd.DataFrame(np.mean(means > thmax, axis=1),
+                            index=sample_sizes, columns=densities)
+powermap_95 = pd.DataFrame(np.mean(means[:, :, :] > th95, axis=1),
+                           index=sample_sizes, columns=densities)
+
+
+
+fig, axs = plt.subplots(1, 2, figsize = [9, 5], sharex=True, sharey=True)
+
+ax = axs[0]
+sns.heatmap(powermap_95, ax=ax)
+ax.set(xlabel='density min-1', ylabel='bootstrap sample size')
+ax.set_title('bootstraped > perm 95%')
+
+ax = axs[1]
+sns.heatmap(powermap_max, ax=ax)
+ax.set_title('bootstraped > perm max')
+ax.set(xlabel='density min-1', ylabel='bootstrap sample size')
+
+fig.suptitle('Bootstrapped Powermap')
+
+plotting.savefig(fig, 'supplement/bootstrapped-sequenceness.png')
+
 #%% 5a Corr with performance
 
 pkl_sim_linear = f'{settings.cache_dir}/simulation-sequenceness-linear-{lag_sim}.pkl.zip'
@@ -1376,7 +1466,7 @@ df_both = df_both[df_both.direction=='fwd']
 
 # Assuming df_both is your DataFrame
 df_corr = df_both.groupby(['performance scaling', 'density']).apply(
-            lambda group: pd.Series(stats.pearsonr(group.seq70, group.performance), index=['r', 'p'])
+            lambda group: pd.Series(stats.pearsonr(group.seq80, group.performance), index=['r', 'p'])
         ).reset_index()
 
 fig, ax = plt.subplots(1, 1, figsize=[8, 6])
@@ -1513,17 +1603,23 @@ df_sel.sort_values('sorter', inplace=True)
 # create color palette based on performance
 fig, ax = plt.subplots(figsize=[8, 6])
 palette = sns.color_palette("ch:start=.2,rot=-.3", n_colors=151)[::-1]
+
+
 hues = {subj:palette[int(100*(get_performance(subj)-0.5)*2)] for subj in df_sel.subject}
-mp = sns.scatterplot(df_sel, x='condition', y='seq70', hue='subject', palette=hues,
+mp = sns.scatterplot(df_sel, x='condition', y='seq80', hue='subject', palette=hues,
                   legend=True, s=100, ax=ax)
-mp = sns.lineplot(df_sel, x='condition', y='seq70', hue='subject', palette=hues,
+mp = sns.lineplot(df_sel, x='condition', y='seq80', hue='subject', palette=hues,
                   legend=False, ax=ax, alpha=0.5)
 
 
-ax.set_ylabel('sequenceness at 70 ms (u.u.)')
+ax.set_ylabel('sequenceness at 80 ms (u.u.)')
 ax.set_xlabel('')
 ax.set_title('Sequenceness variation across subject')
-ax.legend([*4*['_'], '50%', '_', '75%', '_', '_', '_', '100%'], loc='upper left', title='Performance')
+handles, labels = ax.get_legend_handles_labels()
+handles = [x for i, x in enumerate(handles) if i in [0, 2, 6]]
+labels = [x for i, x in enumerate(labels) if i in [0, 2, 6]]
+
+ax.legend(handles, ['50%', '75%', '100%'], loc='upper left', title='Performance')
 
 utils.savefig(fig, 'figure/correlation-bestcase-realistisc-case.png')
 
@@ -1993,6 +2089,177 @@ fig.tight_layout()
 plt.pause(0.1)
 fig.savefig(settings.plot_dir + f'localizer_perclass.png')
 
+
+#%% SUPPL: burst vs uniform replay
+from meg_utils import misc
+from matplotlib.ticker import FuncFormatter
+
+np.random.seed(20250115)
+
+# --- configuration matching manuscript style ---
+rate_events_per_sec = 80        # insert 80 events per second
+n_steps = 1
+tp = 31                         # peak decoding timepoint already used above
+sfreq = 100
+zscore_axes = -1                # keep normalization consistent with rest of manuscript
+alpha_freq = 10
+max_lag = 30
+
+# Gaussian weighting across 5 samples around tp (same as manuscript sim)
+gaussian_weighting = np.array([0.05842299, 0.24210528, 1.0, 0.24210528, 0.05842299])
+
+# Convert sequence (A->B->... mapping) to ints as before
+sequence = tdlm.utils.char2num(settings.seq_12)[:-1]
+tf = tdlm.seq2tf(settings.seq_12)
+
+# Containers: forward/backward sequenceness for both regimens
+sf_uniform = np.full([len(subjects_incl), max_lag + 1], np.nan)
+sb_uniform = np.full_like(sf_uniform, np.nan)
+sf_bursty  = np.full_like(sf_uniform, np.nan)
+sb_bursty  = np.full_like(sf_uniform, np.nan)
+
+# Optional: store onset tables for quick checks (not required for plots)
+onsets_uniform = {}
+onsets_bursty = {}
+
+def create_alternating_dist(length, seglen):
+    """Create a normalized probability vector with alternating zero/one blocks.
+    """
+    pattern = np.r_[np.zeros(seglen, dtype=float), np.ones(seglen, dtype=float)]
+    reps = (length + pattern.size - 1) // pattern.size
+    p = np.tile(pattern, reps)[:length]
+
+    s = p.sum()
+    if s == 0:
+        return np.full(length, 1.0 / length, dtype=float)
+    return p / s
+
+# Build insertion patterns per subject (same logic as main sim section)
+for i, subj in enumerate(tqdm(subjects_incl, desc="Sim burst vs uniform")):
+    train_x, train_y = localizer[subj]
+
+    # pattern around tp with Gaussian temporal weighting
+    insert_data_tp = train_x[:, :, tp - 2 : tp + 3].copy()
+    insert_data_tp *= gaussian_weighting
+
+    # class-specific differential pattern as in `erp_diff_others`
+    insert_class_pattern = []
+    insert_labels = sorted(set(train_y))
+    for lbl in insert_labels:
+        erp_others = insert_data_tp[train_y != lbl].mean(0)
+        insert_class_pattern += [insert_data_tp[train_y == lbl].mean(0) - erp_others]
+    insert_data = np.stack(insert_class_pattern)
+
+    # base data: RS1 per subject
+    rs_base = rs1[subj]
+
+    n_events = int(len(rs_base) / 100  * rate_events_per_sec/60)
+    # two distributions
+    p_burst = create_alternating_dist(len(rs_base), 3000)
+
+    # Uniform regimen
+    rs_uni, df_uni = tdlm.utils.insert_events(
+        data=rs_base,
+        insert_data=insert_data,
+        insert_labels=insert_labels,
+        sequence=sequence,
+        n_events=n_events,
+        n_steps=n_steps,
+        lag=lag_sim,
+        distribution="constant",
+        return_onsets=True,
+    )
+
+    # Bursty regimen
+    rs_bur, df_bur = tdlm.utils.insert_events(
+        data=rs_base,
+        insert_data=insert_data,
+        insert_labels=insert_labels,
+        sequence=sequence,
+        n_events=n_events,
+        n_steps=n_steps,
+        lag=lag_sim,
+        distribution=p_burst,
+        return_onsets=True,
+    )
+
+    onsets_uniform[subj] = df_uni
+    onsets_bursty[subj] = df_bur
+
+    # Decode probabilities
+    clf.fit(train_x[:, :, tp], train_y, neg_x=neg_x[subj], neg_x_ratio=2.0)
+
+    proba_uni = clf.predict_proba(rs_uni)
+    proba_bur = clf.predict_proba(rs_bur)
+
+    proba_uni = eval(proba_norm)(proba_uni)
+    proba_bur = eval(proba_norm)(proba_bur)
+
+    # TDLM 1-step sequenceness
+    seed = utils.get_id(subj) * 101
+    sf_u, sb_u = tdlm.compute_1step(proba_uni, tf=tf, n_shuf=0, max_lag=max_lag, alpha_freq=alpha_freq, seed=seed)
+    sf_b, sb_b = tdlm.compute_1step(proba_bur, tf=tf, n_shuf=0, max_lag=max_lag, alpha_freq=alpha_freq, seed=seed)
+
+    # z-score along permutations consistent with manuscript
+    sf_uniform[i, :] = zscore_multiaxis(sf_u, axes=zscore_axes)
+    sb_uniform[i, :] = zscore_multiaxis(sb_u, axes=zscore_axes)
+    sf_bursty[i, :]  = zscore_multiaxis(sf_b, axes=zscore_axes)
+    sb_bursty[i, :]  = zscore_multiaxis(sb_b, axes=zscore_axes)
+
+# --- Group plots (forward/backward curves) ---
+fig, axs = plt.subplots(2, 2, figsize=[16, 10])
+
+for i, sxx in enumerate([[sf_uniform, sb_uniform], [sf_bursty, sb_bursty]]):
+    name = ['uniform', 'bursty'][i]
+    colors = [[sns.color_palette("bright")[1], sns.color_palette('dark')[1]],
+              [sns.color_palette("bright")[2], sns.color_palette('dark')[2]]]
+    for d, sx in enumerate(sxx):
+        direction = ['forward', 'backward'][d]
+        df_seq = misc.to_long_df(sx, ['subject', 'timelag'], value_name='sequenceness',
+                                 timelag={'time lag': np.arange(0, 310, 10)})
+        sns.lineplot(df_seq, ax=axs[0, d], x='time lag', y='sequenceness', color=colors[d][i],
+                     label=f'{name}')
+        axs[0, d].set(title=f'{direction}')
+
+
+ax = axs[1, 0]
+ax.clear()
+ax.plot(p_burst, label='bursty')
+ax.plot(np.ones_like(p_burst)/len(p_burst), label='uniform')
+ax.set_xticks(np.arange(0, 25000, 100*30))
+formatter = FuncFormatter(lambda x, pos: f"{int(x//6000)}:{int((x//100)%60):02d}")
+ax.xaxis.set_major_formatter(formatter)
+ax.set(xlabel="Time (min:sec)", ylabel='sequence start probability',
+       title='Replay onset probability distribution ')
+ax.legend()
+
+ax = axs[1, 1]
+ax.clear()
+
+positions = []
+for subj, df_subj in onsets_bursty.items():
+    df_sel = df_subj[df_subj.step==0]
+    positions += sorted(df_sel.pos)
+ax.hist(positions, bins=500, label='bursty', alpha=0.5)
+
+positions = []
+for subj, df_subj in onsets_uniform.items():
+    df_sel = df_subj[df_subj.step==0]
+    positions += sorted(df_sel.pos)
+
+ax.hist(positions, bins=500, label='uniform', alpha=0.5)
+ax.legend()
+
+
+formatter = FuncFormatter(lambda x, pos: f"{int(x//6000)}:{int((x//100)%60):02d}")
+ax.xaxis.set_major_formatter(formatter)
+ax.set(xlabel="Time (min:sec)", ylabel='#n counts of starts across participants',)
+ax.set_title('Empirical sequence starts distribution')
+sns.despine(fig)
+
+utils.normalize_lims(axs[0, :])
+fig.suptitle('TDLM with simulated bursty replay at 80 min⁻¹', fontsize=22)
+utils.savefig(fig, 'supplement/bursty-vs-uniform-replay.png')
 
 #%% EXTRA RS1 vs RS2 with alphafilter
 

@@ -17,11 +17,11 @@ import warnings
 import hashlib
 from pathlib import Path
 from types import ModuleType
-
+import pandas as pd
+from scipy.stats import ttest_1samp
 import compress_pickle
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 import seaborn as sns
 from joblib import Memory, Parallel, delayed
 from numpyencoder import NumpyEncoder
@@ -37,6 +37,15 @@ import settings
 # cache some static results here
 memory = Memory(settings.cache_dir if settings.caching_enabled else None)
 
+def permute_sign_test(all_seq_values, time_lag_idx, rand_seed=None):
+    n_subjects = all_seq_values.shape[0]  # all_seq_values shape: (n_subjects, n_lags)
+    random.seed(rand_seed)
+    perm_signs = [random.choice([-1, 1]) for _ in range(n_subjects)]
+    perm_signs = np.array(perm_signs)[:, np.newaxis] # shape: (n_subjects, 1)
+    permuted_seq_values = all_seq_values * perm_signs
+    t_val, p_values = ttest_1samp(permuted_seq_values, 0, axis=0, nan_policy='omit')
+    time_lag_tvals = t_val[time_lag_idx] # selecting permuted tvalues from 40-90 ms time lags
+    return time_lag_tvals
 
 def plot_rest_state_spectrograms(rs1_orig,
                                  rs1_filt,
@@ -886,7 +895,8 @@ def _get_score(clf, data_x, data_y, tp, n_splits=5):
 def get_image_names(subj):
     """get the order of images for a participant"""
     idx = get_id(subj) - 100
-    seq_file = f"./data/category_graph/sequence_participant_{idx}.csv"
+    curr_dir = os.path.dirname(__file__)
+    seq_file = f"{curr_dir}/data/category_graph/sequence_participant_{idx}.csv"
     with open(seq_file, "r") as f:
         c = f.read().strip()
     names = [x.replace(".png", "") for x in c.split(",")]
