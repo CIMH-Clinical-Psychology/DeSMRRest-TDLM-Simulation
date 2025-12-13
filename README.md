@@ -15,6 +15,10 @@ conda create --name tdlm-sim python=3.10
 conda activate tdlm-sim
 # assuming you are in the folder of the repository
 pip install -r requirements.txt
+
+# initialize meg-utils submodule
+git submodule init
+git submodule update
 ```
 
 ### 2. Download and setup
@@ -35,4 +39,5 @@ Download the experiment files from [Zenodo](https://zenodo.org/record/8001755) i
 Now you can simply run `run_analysis.py`. I personally used [Spyder](https://spyder-ide.org/ ) to run the script, which also nicely annotates the cells. It's included in Anaconda, so you might already have it installed.
 
 All plots should appear in your plot_dir
+
 
