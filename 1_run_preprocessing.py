@@ -3,7 +3,8 @@
 """
 Created on Sun Dec 14 07:27:21 2025
 
-helper script to run participant preprocessing on the cluster
+helper script to run participant preprocessing on the cluster.
+You can either run it as a __main__ by calling
 
 @author: simon.kern
 """
@@ -48,10 +49,22 @@ if __name__=='__main__':
 
     print(sys.argv)
 
-    assert len(sys.argv)>1, 'no argument supplied, must supply number/int for participant'
-    
-    subj_id = int(sys.argv[1])
-    np.random.seed(subj_id)  # for safety
+    if len(sys.argv)==1:
+        for subj_id in range(1, 32):
+            if subj_id == 8:
+                continue  # missing
+            np.random.seed(subj_id)  # for safety
+            subj = f'DSMR1{subj_id:02d}'
+            try:
+                preprocess_participants(subj)
+            except Exception as e:
+                print(f'ERROR for {subj=}: {e}')
 
-    subj = f'DSMR1{subj_id:02d}'
-    preprocess_participants(subj)
+    elif len(sys.argv)==2:
+      subj_id = int(sys.argv[1])
+      np.random.seed(subj_id)  # for safety
+
+      subj = f'DSMR1{subj_id:02d}'
+      preprocess_participants(subj)
+    else:
+        raise ValueError('either supply one participant number as argument (1-31) or none to process all')
