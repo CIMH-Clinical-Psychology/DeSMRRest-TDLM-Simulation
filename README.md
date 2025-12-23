@@ -8,7 +8,16 @@ Find the preprint at [eLife](https://elifesciences.org/reviewed-preprints/108023
 
 ### 1. Getting started
 
-First install the requirements using pip `pip install -r requirements.txt`. It is recommended to run this in a dedicated environment not to mix up your current Python installation. You can do so e.g. using [conda env](https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#creating-an-environment-with-commands).
+First of all, clone the repository and init the submodule `meg_utils`
+
+```bash
+git clone https://github.com/CIMH-Clinical-Psychology/DeSMRRest-TDLM-Simulation.git
+cd DeSMRRest-TDLM-Simulation
+git submodule init
+git submodule update
+```
+
+Then install the requirements using pip `pip install -r requirements.txt`. It is recommended to run this in a dedicated environment not to mix up your current Python installation. You can do so e.g. using [conda env](https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#creating-an-environment-with-commands).
 
 ```bash
 conda create --name tdlm-sim python=3.10
