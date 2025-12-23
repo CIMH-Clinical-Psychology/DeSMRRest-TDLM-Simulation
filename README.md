@@ -28,10 +28,39 @@ plot_dir = f'{data_dir}/plots/'       # plots will be stored here
 log_dir = f'{data_dir}/plots/logs/'   # log files will be created here
 ```
 
-Download the experiment files from [Zenodo](https://zenodo.org/record/8001755) into a common folder. The files are split up into two repositories, 10.5281/zenodo.8001755 and 10.5281/zenodo.15629081. Instead of downloading them individually, you they can be downloaded automatically by running `python download_dataset.py` . This will utilize the Python API `pyzenodo3` and download the 140 GB dataset into your `data_dir`. This can take a while. 
+Download the experiment files from [Zenodo](https://zenodo.org/record/8001755) into a common folder. The files are split up into two repositories, 10.5281/zenodo.8001755 and 10.5281/zenodo.15629081. Instead of downloading them individually, you they can be downloaded automatically by running `python 0_download_dataset.py`. This will utilize the Python API `pyzenodo3` and download the 140 GB dataset into your `data_dir`. This can take a while.
 
-### 3. Run analysis
+### 3. Scripts
 
-Now you can simply run `run_analysis.py`. I personally used [Spyder](https://spyder-ide.org/ ) to run the script, which also nicely annotates the cells. It's included in Anaconda, so you might already have it installed.
+The analysis is split into several scripts:
 
-All plots should appear in your plot_dir
+| Script | Description |
+|---|---|
+| `0_download_dataset.py` | Downloads the dataset from Zenodo. |
+| `1_run_preprocessing.py` | Preprocesses the MEG data for each participant. This includes downsampling, filtering, and segmenting the data. |
+| `2_run_study1.py` | Runs the first study, which investigates sequenceness in resting-state data. |
+| `3_run_study2.py` | Runs the second study, which is a hybrid simulation to investigate the effect of replay on sequenceness. |
+| `4_run_supplement.py` | Runs supplementary analyses, including sensor pattern analysis and ERP visualization. |
+| `5_run_revision1.py` | Runs analyses for the first revision of the paper. |
+| `6_run_synthetic_simulation.py` | Runs a purely synthetic simulation of replay. |
+| `7_run_discriminability_analysis.py` | Compares the discriminability of classifier probabilities between real and simulated data. |
+
+### 4. Running the analysis
+
+To run the analysis, you first need to run the preprocessing for all participants. You can do this by running:
+
+```bash
+python 1_run_preprocessing.py
+```
+
+This will preprocess the data for all participants and save the results in the cache directory. This can take a while.
+
+If you are working on a cluster, you can also submit the preprocessing as a job. An example sbatch script is provided in `1_run_preprocessing.sbatch`.
+
+After the preprocessing is finished, you can run the other scripts to reproduce the analyses and figures from the paper. For example, to run the first study, you can run:
+
+```bash
+python 2_run_study1.py
+```
+
+All plots should appear in your `plot_dir`.
