@@ -20,7 +20,7 @@ git submodule update
 Then install the requirements using pip `pip install -r requirements.txt`. It is recommended to run this in a dedicated environment not to mix up your current Python installation. You can do so e.g. using [conda env](https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#creating-an-environment-with-commands).
 
 ```bash
-conda create --name tdlm-sim python=3.10
+conda create --name tdlm-sim python=3.13.11
 conda activate tdlm-sim
 # assuming you are in the folder of the repository
 pip install -r requirements.txt
