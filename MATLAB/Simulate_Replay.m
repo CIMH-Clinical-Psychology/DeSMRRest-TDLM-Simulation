@@ -30,7 +30,7 @@ for iS = 1:3
     sf2 = cell(nSubj,1);  sb2 = cell(nSubj,1);
     
     %% Core function
-    parfor iSj = 1:nSubj
+    for iSj = 1:nSubj
         sf{iSj} = nan(1, nShuf, maxLag+1);
         sb{iSj} = nan(1, nShuf, maxLag+1);
           
@@ -116,7 +116,9 @@ for iS = 1:3
         end
     
         preds=preds+0.05*coreP;    
-    
+        
+        asdf
+
         %% calculate sequenceness 
         for iShuf = 1:nShuf
             rp = uniquePerms(iShuf,:);  % use the 30 unique permutations (is.nShuf should be set to 29)

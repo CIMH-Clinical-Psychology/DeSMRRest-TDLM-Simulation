@@ -353,6 +353,7 @@ def load_meg(file, sfreq=100, ica=None, filter_func="lambda x:x", verbose="ERROR
     def _load_meg_ica(file, sfreq, ica, verbose):
         """loads MEG data, calculates artefacted epochs before"""
         from utils import get_id
+        np.random.seed(get_id(file))  # for safety
 
         tstep = 2.0  # default ICA value for tstep
         raw = mne.io.read_raw_fif(file, preload=True, verbose=verbose)

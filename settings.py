@@ -135,8 +135,10 @@ elif username == 'simon.kern':  # any other VM
     # else:
     cache_dir = f'{home}/joblib-resting-state/'
     data_dir = '/zi/flstorage/group_klips/data/data/Simon/DeSMRRest/upload/'
-    plot_dir = f'{home}/tdlm-reboot/plots/'
+    plot_dir = f'{curr_dir}/plots/'
 
+elif username=='simon' and host=='kubuntu':
+    data_dir = '.'
 elif username == 'simon' and host in ('thinkpad-simon', 'desktop-dakomj2'):
     cache_dir = f'z:/joblib-simulation/'
     data_dir = "z:"

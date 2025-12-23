@@ -23,6 +23,7 @@ import compress_pickle
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
+from meg_utils import misc
 from joblib import Memory, Parallel, delayed
 from numpyencoder import NumpyEncoder
 from sklearn.base import BaseEstimator, clone, is_classifier
@@ -31,7 +32,6 @@ from scipy import stats
 from scipy.stats import pearsonr, zscore
 from tqdm import tqdm
 from scipy.stats import t
-from sleep_utils import specgram_multitaper
 import settings
 
 # cache some static results here
@@ -295,6 +295,7 @@ def interpolate_matrix(matrix):
 def get_sequences(subj, which="test"):
     """
     reads the sequences from a log file
+    # the seq data has format [seq1, seq2, opt1, opt2, opt3, corr]
     """
     assert "DSMR" in subj, "subj must contain DSMR, but is {subj=}"
     subj_dict = json_load(f"./data/{subj}.json")
@@ -846,10 +847,21 @@ def get_decoding_heatmap(clf, data_x, data_y, ex_per_fold=4, n_jobs=8, range_t=N
     return res.mean(0).squeeze()
 
 
-def get_decoding_accuracy(subj, clf=settings.default_clf, n_splits=10):
+def get_decoding_accuracy(subj, clf=settings.default_clf, n_splits=10, data=None):
     """wrapper to allow pickling of clf"""
-    return _get_decoding_accuracy(subj, clf=clf, clf_str=str(clf), n_splits=n_splits)
 
+    #  clone to replace unnecessary parameters
+    clf_clone = clone(clf)
+
+    if hasattr(clf, 'rng') and clf.rng is not None:
+       clf_clone.set_params(rng=0)
+    if hasattr(clf, 'random_state') and clf.random_state is not None:
+       clf_clone.set_params(random_state=None)
+
+    clf_str = str(clf_clone)
+
+    acc = _get_decoding_accuracy(subj, clf=clf, clf_str=clf_str, n_splits=n_splits, data=data)
+    return acc
 
 @memory.cache(ignore=["clf"])
 def _get_decoding_accuracy(subj, clf, clf_str, n_splits, data=None):
@@ -1193,86 +1205,6 @@ def get_sensor_correlation(clf, axis=None):
         return np.nanmean(corrcoef, axis)
     except:
         return np.nan
-
-
-class LogisticRegressionOvaNegX(LogisticRegression):
-    """one vs all logistic regression classifier including negative examples.
-
-    Under the hood, one separate LogisticRegression is trained per class.
-    The LogReg is trained using positive examples (inclass) and negative
-    examples (outclass + nullclass).
-    """
-
-    def __init__(
-        self,
-        penalty="l1",
-        C=1.0,
-        solver="liblinear",
-        max_iter=1000,
-        neg_x_ratio=1.0,
-    ):
-
-        self.neg_x_ratio = neg_x_ratio
-        self.C = C
-        self.max_iter = max_iter
-        self.solver = solver
-        # self.n_pca = n_pca
-        LogisticRegression.__init__(
-            self,
-            penalty=penalty,
-            C=C,
-            solver=solver,
-            max_iter=max_iter,
-            multi_class="ovr",
-        )
-
-
-    def fit(self, X, y, neg_x=None, neg_x_ratio=None):
-        # if self.n_pca is not None:
-        #     self.pca = PCA(self.n_pca)
-        #     X = self.pca.fit_transform(X)
-        #     neg_x = self.pca.transform(neg_x)
-        self.classes_ = np.unique(y)
-        neg_x_ratio = self.neg_x_ratio if neg_x_ratio is None else neg_x_ratio
-        models = []
-        intercepts = []
-        coefs = []
-
-        for class_ in self.classes_:
-            clf = LogisticRegression(penalty = self.penalty, C= self.C,
-                                     solver=self.solver, max_iter=self.max_iter)
-            idx_class = y == class_
-            true_x = X[idx_class]
-            false_x = X[~idx_class]
-
-            if neg_x is not None:
-                n_null = int(len(X) * neg_x_ratio)
-                replace = len(neg_x) < n_null
-                idx_neg = np.random.choice(len(neg_x), size=n_null, replace=replace)
-                false_x = np.vstack([false_x, neg_x[idx_neg]])
-
-            data_x = np.vstack([true_x, false_x])
-            data_y = np.hstack([np.ones(len(true_x)), np.zeros(len(false_x))])
-
-            clf.fit(data_x, data_y)
-            models.append(clf)
-            intercepts.append(clf.intercept_)
-            coefs.append(clf.coef_)
-
-        self.models = models
-        self.intercept_ = np.squeeze(intercepts)
-        self.coef_ = np.squeeze(coefs)
-
-        return self
-
-    def predict_proba(self, X):
-        # if self.n_pca is not None:
-        #     X = self.pca.transform(X)
-        proba = []
-        for clf in self.models:
-            p = clf.predict_proba(X)[:, 1]
-            proba.append(p)
-        return np.array(proba).T
 
 
 def plot_sf_sb(
