@@ -20,5 +20,5 @@ scipy==1.16.3
 seaborn==0.13.2
 specparam==2.0.0rc6
 statsmodels==0.14.6
-tdlm_python==0.4.1
+tdlm_python==0.4.2
 tqdm==4.67.1

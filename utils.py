@@ -1136,7 +1136,7 @@ def get_best_timepoint(
         test_x = data_x[idxs_test]
         test_y = data_y[idxs_test]
 
-        neg_x = np.hstack(train_x[:, :, 0:1].T).T if add_null_data else None
+        neg_x = np.hstack(train_x[:, :, 0:2].T).T if add_null_data else None
         preds = Parallel(n_jobs=n_jobs)(
             delayed(train_predict)(
                 train_x=train_x[:, :, start],
