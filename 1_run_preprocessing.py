@@ -3,8 +3,15 @@
 """
 Created on Sun Dec 14 07:27:21 2025
 
-helper script to run participant preprocessing on the cluster.
-You can either run it as a __main__ by calling
+helper script with ability to run participant preprocessing on the cluster.
+You can either
+    - run it as a main() by calling the script without arguments via python,
+      which just processes subjects sequentially
+    OR
+    - adapt and use the sbatch script and run all participants in
+      parallel on a cluster
+
+Running this script will populate the joblib memory cache.
 
 @author: simon.kern
 """
