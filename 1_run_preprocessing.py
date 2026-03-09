@@ -12,7 +12,6 @@ import numpy as np
 import sys
 import settings
 # overwrite settings dir
-settings.cache_dir = '/zi/home/simon.kern/joblib-resting-state/'
 
 import utils
 from settings import  cache_dir
