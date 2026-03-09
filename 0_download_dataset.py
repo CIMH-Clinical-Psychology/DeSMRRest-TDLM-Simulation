@@ -2,16 +2,13 @@
 """
 Created on Wed Jun 11 11:14:28 2025
 
+Download the DeSMRRest resting-state dataset from Zenodo (multipart,
+doi://10.5281/zenodo.8001755). Verifies file integrity via size and MD5
+checksums, skips already downloaded files, and checks for sufficient disk space.
+
 @author: Simon.Kern
 """
 
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Tue Aug  1 13:59:02 2023
-
-@author: simon
-"""
 import hashlib
 import os
 
