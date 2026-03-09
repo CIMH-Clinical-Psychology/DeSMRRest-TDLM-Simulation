@@ -5,8 +5,11 @@ __pycache__/
 
 # C extensions
 *.so
-
+tdlm-reboot/
+supplement/
+scripts/
 plots/
+pipeline/
 
 # Distribution / packaging
 .Python

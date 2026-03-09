@@ -68,6 +68,7 @@ def load_localizers_seq12(subj, **kwargs):
     ica = kwargs["ica"]
     picks = kwargs["picks"]
     sfreq = kwargs["sfreq"]
+    stratify = kwargs.get('stratify', True)
 
     bands = kwargs["bands"]
     tmin = kwargs.get("tmin", -0.1)
@@ -77,7 +78,7 @@ def load_localizers_seq12(subj, **kwargs):
     event_ids = kwargs.get("event_ids", np.arange(1, 11))
     files = list_files(settings.data_dir, patterns=f"{subj}_localizer*fif")
     assert len(files) >= 2
-    logging.info("loading localizer")
+    # logging.info("loading localizer")
     data_localizer = [
         load_epochs_bands(
             f,
@@ -97,33 +98,23 @@ def load_localizers_seq12(subj, **kwargs):
         np.vstack([d[0] for d in data_localizer]),
         np.hstack([d[1] for d in data_localizer]),
     ]
-    data_x, data_y = stratify_data(data_x, data_y)
+    if stratify:
+        data_x, data_y = stratify_data(data_x, data_y)
     log_append(files[0], "load_func", {"data_x.shape": data_x.shape, "data_y": data_y})
     return [data_x, data_y]
 
 
 def load_neg_x_before_audio_onset(subj, **kwargs):
     """loads negative examples from the localizer before audio onset"""
-    rng = np.random.RandomState(get_id(subj))
-
-    kwargs.update({"event_ids": [98]})
-    train_x, train_y = load_localizers_seq12(subj, **kwargs)
-
-    defaults = {"neg_x_ratio": 1.0}
-    defaults.update(kwargs.get("load_kws", {}))
-    neg_x_ratio = defaults["neg_x_ratio"]
-    assert neg_x_ratio < 5
-
-    neg_x_all = np.vstack([train_x[:, :, x] for x in range(5)])
-
-    n_neg_x = int(len(train_x) * neg_x_ratio)
-    idx = rng.choice(len(neg_x_all), n_neg_x, replace=False)
-    neg_x = neg_x_all[idx]
-    return neg_x
+    # fixation cross before audio onset 750ms long
+    kwargs.update({"event_ids": [98],
+                   "stratify": False})
+    data_x, _ = load_localizers_seq12(subj, tmin=0, tmax=0.5, **kwargs)
+    return data_x
 
 
 def _load_RS(subj, patterns, final_calculation=False, n_seg=None, **kwargs):
-    logging.info(f'loading RS {patterns=}, {final_calculation=}')
+    # logging.info(f'loading RS {patterns=}, {final_calculation=}')
     kwargs = dict(default_kwargs.copy(), **kwargs)
     ica = kwargs['ica']
     picks = kwargs['picks']
@@ -142,7 +133,7 @@ def _load_RS(subj, patterns, final_calculation=False, n_seg=None, **kwargs):
 
     first_seg = 0 if subj_id<=117 else 1
     if final_calculation:
-        warnings.warn('Running on left-out data of RS')
+        # warnings.warn('Running on left-out data of RS')
         first_seg = int(not first_seg) # shift order if running on validation set
 
     log_append(rs_file[0], 'load_func', {'final_calculation':final_calculation,

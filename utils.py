@@ -17,12 +17,13 @@ import warnings
 import hashlib
 from pathlib import Path
 from types import ModuleType
-
+import pandas as pd
+from scipy.stats import ttest_1samp
 import compress_pickle
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 import seaborn as sns
+from meg_utils import misc
 from joblib import Memory, Parallel, delayed
 from numpyencoder import NumpyEncoder
 from sklearn.base import BaseEstimator, clone, is_classifier
@@ -31,12 +32,96 @@ from scipy import stats
 from scipy.stats import pearsonr, zscore
 from tqdm import tqdm
 from scipy.stats import t
-
 import settings
 
 # cache some static results here
 memory = Memory(settings.cache_dir if settings.caching_enabled else None)
 
+def permute_sign_test(all_seq_values, time_lag_idx, rand_seed=None):
+    n_subjects = all_seq_values.shape[0]  # all_seq_values shape: (n_subjects, n_lags)
+    random.seed(rand_seed)
+    perm_signs = [random.choice([-1, 1]) for _ in range(n_subjects)]
+    perm_signs = np.array(perm_signs)[:, np.newaxis] # shape: (n_subjects, 1)
+    permuted_seq_values = all_seq_values * perm_signs
+    t_val, p_values = ttest_1samp(permuted_seq_values, 0, axis=0, nan_policy='omit')
+    time_lag_tvals = t_val[time_lag_idx] # selecting permuted tvalues from 40-90 ms time lags
+    return time_lag_tvals
+
+def plot_rest_state_spectrograms(rs1_orig,
+                                 rs1_filt,
+                                 rs2_orig,
+                                 rs2_filt,
+                                 *,
+                                 sfreq: float,
+                                 chan_idx: int = 0,
+                                 subj = None,):
+    """Plot a 4‑panel multitaper spectrogram (RS1 / RS1_filt / RS2 / RS2_filt).
+
+    Parameters
+    ----------
+    rs1, rs1_filt, rs2, rs2_filt : ndarray (n_times, n_channels)
+        Resting‑state data (raw and notch‑filtered).
+    sfreq : float
+        Sampling frequency in Hz.
+    chan_idx : int, default 0
+        Index of the exemplar channel to visualise.
+    subj : str | int | None, optional
+        Subject identifier for labelling / filenames.
+    out_dir : str, default "spectrograms"
+        Directory where the PNG will be written (created if absent).
+
+    Returns
+    -------
+    matplotlib.figure.Figure
+        The figure object containing the 2×2 spectrogram grid.
+    """
+
+
+    fig, axs = plt.subplots(2, 2, figsize=(14, 8), sharex=True, sharey=True)
+    titles = ("RS1", "RS1 notch", "RS2", "RS2 notch")
+    data_streams = (
+        rs1_orig[:, chan_idx],
+        rs1_filt[:, chan_idx],
+        rs2_orig[:, chan_idx],
+        rs2_filt[:, chan_idx],
+    )
+
+    # default multitaper parameters — can be overridden via **sg_kwargs
+
+    for ax, d, ttl in zip(axs.flat, data_streams, titles):
+        specgram_multitaper(
+            d,
+            sfreq,
+            sperseg=20,
+            perc_overlap=4/5,
+            ufreq=40,
+            show_plot=True,  # we manage drawing on the supplied ax
+            ax=ax,
+            title=ttl,
+        )
+
+    vmin = min([ax.images[-1].get_clim()[0] for ax in axs.flat])
+    vmax = max([ax.images[-1].get_clim()[1] for ax in axs.flat])
+    for i, ax in enumerate(axs.flat):
+        if i%2:
+            ax.images[-1].set_clim(vmin*7, vmax)
+
+
+    for ax in axs[:, 0]:  # left column
+        ax.set_ylabel("Frequency (Hz)")
+    for ax in axs[1, :]:  # bottom row
+        ax.set_xlabel("Time (s)")
+
+    if subj is not None:
+        fig.suptitle(f"Spectrogram (ch {chan_idx}) — {subj}")
+    else:
+        fig.suptitle(f"Spectrogram (ch {chan_idx})")
+
+    fig.tight_layout()
+
+    # save a high‑resolution copy for later inspection
+    savefig(fig, f"spectrum/{subj}_ch{chan_idx}.png")
+    return fig
 
 def calculate_r_threshold(n, alpha=0.05):
     # Degrees of freedom
@@ -210,6 +295,7 @@ def interpolate_matrix(matrix):
 def get_sequences(subj, which="test"):
     """
     reads the sequences from a log file
+    # the seq data has format [seq1, seq2, opt1, opt2, opt3, corr]
     """
     assert "DSMR" in subj, "subj must contain DSMR, but is {subj=}"
     subj_dict = json_load(f"./data/{subj}.json")
@@ -262,6 +348,7 @@ def get_responses(subj):
     assert "DSMR" in subj, "subj must contain DSMR, but is {subj=}"
     subj_dict = json_load(f"./data/{subj}.json")
     df_blocks = pd.DataFrame(subj_dict['blocks'])
+    df_blocks['accuracy'] = df_blocks.Correct==df_blocks.Choice
     return df_blocks
 
 @memory.cache
@@ -562,7 +649,7 @@ def savefig(fig, filename, tight=True, despine=True):
         fig.tight_layout()
     plt.pause(0.1)
     if settings.plot_dir in filename:
-        raise ValueError(f'{filename} does not contain the plot dir')
+        raise ValueError(f'{filename} does contains the plot dir, not necessary')
     out_dir = f'{settings.plot_dir}/{os.path.dirname(filename)}'
     os.makedirs(out_dir, exist_ok=True)
     if not filename.endswith(('png', 'jpg', 'svg', 'eps')):
@@ -760,10 +847,21 @@ def get_decoding_heatmap(clf, data_x, data_y, ex_per_fold=4, n_jobs=8, range_t=N
     return res.mean(0).squeeze()
 
 
-def get_decoding_accuracy(subj, clf=settings.default_clf, n_splits=10):
+def get_decoding_accuracy(subj, clf=settings.default_clf, n_splits=10, data=None):
     """wrapper to allow pickling of clf"""
-    return _get_decoding_accuracy(subj, clf=clf, clf_str=str(clf), n_splits=n_splits)
 
+    #  clone to replace unnecessary parameters
+    clf_clone = clone(clf)
+
+    if hasattr(clf, 'rng') and clf.rng is not None:
+       clf_clone.set_params(rng=0)
+    if hasattr(clf, 'random_state') and clf.random_state is not None:
+       clf_clone.set_params(random_state=None)
+
+    clf_str = str(clf_clone)
+
+    acc = _get_decoding_accuracy(subj, clf=clf, clf_str=clf_str, n_splits=n_splits, data=data)
+    return acc
 
 @memory.cache(ignore=["clf"])
 def _get_decoding_accuracy(subj, clf, clf_str, n_splits, data=None):
@@ -809,7 +907,8 @@ def _get_score(clf, data_x, data_y, tp, n_splits=5):
 def get_image_names(subj):
     """get the order of images for a participant"""
     idx = get_id(subj) - 100
-    seq_file = f"./data/category_graph/sequence_participant_{idx}.csv"
+    curr_dir = os.path.dirname(__file__)
+    seq_file = f"{curr_dir}/data/category_graph/sequence_participant_{idx}.csv"
     with open(seq_file, "r") as f:
         c = f.read().strip()
     names = [x.replace(".png", "") for x in c.split(",")]
@@ -1037,7 +1136,7 @@ def get_best_timepoint(
         test_x = data_x[idxs_test]
         test_y = data_y[idxs_test]
 
-        neg_x = np.hstack(train_x[:, :, 0:1].T).T if add_null_data else None
+        neg_x = np.hstack(train_x[:, :, 0:2].T).T if add_null_data else None
         preds = Parallel(n_jobs=n_jobs)(
             delayed(train_predict)(
                 train_x=train_x[:, :, start],
@@ -1106,86 +1205,6 @@ def get_sensor_correlation(clf, axis=None):
         return np.nanmean(corrcoef, axis)
     except:
         return np.nan
-
-
-class LogisticRegressionOvaNegX(LogisticRegression):
-    """one vs all logistic regression classifier including negative examples.
-
-    Under the hood, one separate LogisticRegression is trained per class.
-    The LogReg is trained using positive examples (inclass) and negative
-    examples (outclass + nullclass).
-    """
-
-    def __init__(
-        self,
-        penalty="l1",
-        C=1.0,
-        solver="liblinear",
-        max_iter=1000,
-        neg_x_ratio=1.0,
-    ):
-
-        self.neg_x_ratio = neg_x_ratio
-        self.C = C
-        self.max_iter = max_iter
-        self.solver = solver
-        # self.n_pca = n_pca
-        LogisticRegression.__init__(
-            self,
-            penalty=penalty,
-            C=C,
-            solver=solver,
-            max_iter=max_iter,
-            multi_class="ovr",
-        )
-
-
-    def fit(self, X, y, neg_x=None, neg_x_ratio=None):
-        # if self.n_pca is not None:
-        #     self.pca = PCA(self.n_pca)
-        #     X = self.pca.fit_transform(X)
-        #     neg_x = self.pca.transform(neg_x)
-        self.classes_ = np.unique(y)
-        neg_x_ratio = self.neg_x_ratio if neg_x_ratio is None else neg_x_ratio
-        models = []
-        intercepts = []
-        coefs = []
-
-        for class_ in self.classes_:
-            clf = LogisticRegression(penalty = self.penalty, C= self.C,
-                                     solver=self.solver, max_iter=self.max_iter)
-            idx_class = y == class_
-            true_x = X[idx_class]
-            false_x = X[~idx_class]
-
-            if neg_x is not None:
-                n_null = int(len(X) * neg_x_ratio)
-                replace = len(neg_x) < n_null
-                idx_neg = np.random.choice(len(neg_x), size=n_null, replace=replace)
-                false_x = np.vstack([false_x, neg_x[idx_neg]])
-
-            data_x = np.vstack([true_x, false_x])
-            data_y = np.hstack([np.ones(len(true_x)), np.zeros(len(false_x))])
-
-            clf.fit(data_x, data_y)
-            models.append(clf)
-            intercepts.append(clf.intercept_)
-            coefs.append(clf.coef_)
-
-        self.models = models
-        self.intercept_ = np.squeeze(intercepts)
-        self.coef_ = np.squeeze(coefs)
-
-        return self
-
-    def predict_proba(self, X):
-        # if self.n_pca is not None:
-        #     X = self.pca.transform(X)
-        proba = []
-        for clf in self.models:
-            p = clf.predict_proba(X)[:, 1]
-            proba.append(p)
-        return np.array(proba).T
 
 
 def plot_sf_sb(

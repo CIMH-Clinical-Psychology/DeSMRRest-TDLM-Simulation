@@ -121,26 +121,32 @@ host     = platform.node().lower()    # the name of this computer
 system   = platform.system().lower()  # linux, windows or mac.
 home = os.path.expanduser('~')
 
+SLURM_JOB_ID = os.environ.get('SLURM_JOB_ID')
 
-data_dir = "."  # enter directory here where the data has been stored
+curr_dir = os.path.dirname(__file__)
 
 # machine specific configuration overwrites general directory structure
-if username == 'simon.kern' and host=='zislrds0035.zi.local':  # simons VM
-    cache_dir = f'/data/joblib-resting-state/'
-    data_dir = '/zi/flstorage/group_klips/data/data/Simon/DeSMRRest/upload/'
-    plot_dir = f'{home}/Nextcloud/ZI/2023.10 TDLMSimulation/DeSMRRest-RestingState/plots'
-
-elif username == 'simon.kern' and host=='5cd320lfh8':
+if username == 'simon.kern' and host=='5cd320lfh8':
     cache_dir = f'{home}/Desktop/joblib-resting-state/'
     data_dir = "W:/group_klips/data/data/Simon/DeSMRRest/upload/"
+elif username == 'simon.kern':  # any other VM
+    # if SLURM_JOB_ID:
+        # cache_dir = f'/data/{SLURM_JOB_ID}/joblib-resting-state/'
+    # else:
+    cache_dir = f'{home}/joblib-resting-state/'
+    data_dir = '/zi/flstorage/group_klips/data/data/Simon/DeSMRRest/upload/'
+    plot_dir = f'{curr_dir}/plots/'
 
-
+elif username=='simon' and host=='kubuntu':
+    data_dir = '.'
 elif username == 'simon' and host in ('thinkpad-simon', 'desktop-dakomj2'):
     cache_dir = f'z:/joblib-simulation/'
     data_dir = "z:"
 else:
-    warnings.warn('No user specific settings found in settings.py')
+    warnings.warn(f'No user specific settings found in settings.py for {username=} {host=}')
 
+if 'data_dir' not in locals():
+    raise Exception('No data_dir in settings.py!')
 
 #%% checks for stuff
 if 'cache_dir' not in locals():
@@ -165,13 +171,15 @@ if not os.path.isdir(plot_dir):
     os.makedirs(plot_dir, exist_ok=True)
 if not os.path.isdir(log_dir):
     warnings.warn(f"log_dir does not exist at {log_dir}, create")
-    os.makedirs(log_dir, exist_ok=True)
+    # os.makedirs(log_dir, exist_ok=True)
 if not os.path.isdir(results_dir):
     warnings.warn(f"log_dir does not exist at {log_dir}, create")
-    os.makedirs(results_dir, exist_ok=True)
+    # os.makedirs(results_dir, exist_ok=True)
 
 if get_free_space(cache_dir) < 20:
     raise RuntimeError(f"Free space for {cache_dir} is below 20GB. Cannot safely run.")
+
+os.environ['JOBLIB_CACHEDIR'] = os.environ.get('JOBLIB_CACHEDIR', cache_dir)
 
 ###############################
 #%% SETTINGS and CONSTANTS
@@ -591,3 +599,355 @@ idx_mag = np.array(
         303,
     ]
 )
+
+
+ch_names =  ['MEG0111',
+ 'MEG0112',
+ 'MEG0113',
+ 'MEG0121',
+ 'MEG0122',
+ 'MEG0123',
+ 'MEG0131',
+ 'MEG0132',
+ 'MEG0133',
+ 'MEG0141',
+ 'MEG0142',
+ 'MEG0143',
+ 'MEG0211',
+ 'MEG0212',
+ 'MEG0213',
+ 'MEG0221',
+ 'MEG0222',
+ 'MEG0223',
+ 'MEG0231',
+ 'MEG0232',
+ 'MEG0233',
+ 'MEG0241',
+ 'MEG0242',
+ 'MEG0243',
+ 'MEG0311',
+ 'MEG0312',
+ 'MEG0313',
+ 'MEG0321',
+ 'MEG0322',
+ 'MEG0323',
+ 'MEG0331',
+ 'MEG0332',
+ 'MEG0333',
+ 'MEG0341',
+ 'MEG0342',
+ 'MEG0343',
+ 'MEG0411',
+ 'MEG0412',
+ 'MEG0413',
+ 'MEG0421',
+ 'MEG0422',
+ 'MEG0423',
+ 'MEG0431',
+ 'MEG0432',
+ 'MEG0433',
+ 'MEG0441',
+ 'MEG0442',
+ 'MEG0443',
+ 'MEG0511',
+ 'MEG0512',
+ 'MEG0513',
+ 'MEG0521',
+ 'MEG0522',
+ 'MEG0523',
+ 'MEG0531',
+ 'MEG0532',
+ 'MEG0533',
+ 'MEG0541',
+ 'MEG0542',
+ 'MEG0543',
+ 'MEG0611',
+ 'MEG0612',
+ 'MEG0613',
+ 'MEG0621',
+ 'MEG0622',
+ 'MEG0623',
+ 'MEG0631',
+ 'MEG0632',
+ 'MEG0633',
+ 'MEG0641',
+ 'MEG0642',
+ 'MEG0643',
+ 'MEG0711',
+ 'MEG0712',
+ 'MEG0713',
+ 'MEG0721',
+ 'MEG0722',
+ 'MEG0723',
+ 'MEG0731',
+ 'MEG0732',
+ 'MEG0733',
+ 'MEG0741',
+ 'MEG0742',
+ 'MEG0743',
+ 'MEG0811',
+ 'MEG0812',
+ 'MEG0813',
+ 'MEG0821',
+ 'MEG0822',
+ 'MEG0823',
+ 'MEG0911',
+ 'MEG0912',
+ 'MEG0913',
+ 'MEG0921',
+ 'MEG0922',
+ 'MEG0923',
+ 'MEG0931',
+ 'MEG0932',
+ 'MEG0933',
+ 'MEG0941',
+ 'MEG0942',
+ 'MEG0943',
+ 'MEG1011',
+ 'MEG1012',
+ 'MEG1013',
+ 'MEG1021',
+ 'MEG1022',
+ 'MEG1023',
+ 'MEG1031',
+ 'MEG1032',
+ 'MEG1033',
+ 'MEG1041',
+ 'MEG1042',
+ 'MEG1043',
+ 'MEG1111',
+ 'MEG1112',
+ 'MEG1113',
+ 'MEG1121',
+ 'MEG1122',
+ 'MEG1123',
+ 'MEG1131',
+ 'MEG1132',
+ 'MEG1133',
+ 'MEG1141',
+ 'MEG1142',
+ 'MEG1143',
+ 'MEG1211',
+ 'MEG1212',
+ 'MEG1213',
+ 'MEG1221',
+ 'MEG1222',
+ 'MEG1223',
+ 'MEG1231',
+ 'MEG1232',
+ 'MEG1233',
+ 'MEG1241',
+ 'MEG1242',
+ 'MEG1243',
+ 'MEG1311',
+ 'MEG1312',
+ 'MEG1313',
+ 'MEG1321',
+ 'MEG1322',
+ 'MEG1323',
+ 'MEG1331',
+ 'MEG1332',
+ 'MEG1333',
+ 'MEG1341',
+ 'MEG1342',
+ 'MEG1343',
+ 'MEG1411',
+ 'MEG1412',
+ 'MEG1413',
+ 'MEG1421',
+ 'MEG1422',
+ 'MEG1423',
+ 'MEG1431',
+ 'MEG1432',
+ 'MEG1433',
+ 'MEG1441',
+ 'MEG1442',
+ 'MEG1443',
+ 'MEG1511',
+ 'MEG1512',
+ 'MEG1513',
+ 'MEG1521',
+ 'MEG1522',
+ 'MEG1523',
+ 'MEG1531',
+ 'MEG1532',
+ 'MEG1533',
+ 'MEG1541',
+ 'MEG1542',
+ 'MEG1543',
+ 'MEG1611',
+ 'MEG1612',
+ 'MEG1613',
+ 'MEG1621',
+ 'MEG1622',
+ 'MEG1623',
+ 'MEG1631',
+ 'MEG1632',
+ 'MEG1633',
+ 'MEG1641',
+ 'MEG1642',
+ 'MEG1643',
+ 'MEG1711',
+ 'MEG1712',
+ 'MEG1713',
+ 'MEG1721',
+ 'MEG1722',
+ 'MEG1723',
+ 'MEG1731',
+ 'MEG1732',
+ 'MEG1733',
+ 'MEG1741',
+ 'MEG1742',
+ 'MEG1743',
+ 'MEG1811',
+ 'MEG1812',
+ 'MEG1813',
+ 'MEG1821',
+ 'MEG1822',
+ 'MEG1823',
+ 'MEG1831',
+ 'MEG1832',
+ 'MEG1833',
+ 'MEG1841',
+ 'MEG1842',
+ 'MEG1843',
+ 'MEG1911',
+ 'MEG1912',
+ 'MEG1913',
+ 'MEG1921',
+ 'MEG1922',
+ 'MEG1923',
+ 'MEG1931',
+ 'MEG1932',
+ 'MEG1933',
+ 'MEG1941',
+ 'MEG1942',
+ 'MEG1943',
+ 'MEG2011',
+ 'MEG2012',
+ 'MEG2013',
+ 'MEG2021',
+ 'MEG2022',
+ 'MEG2023',
+ 'MEG2031',
+ 'MEG2032',
+ 'MEG2033',
+ 'MEG2041',
+ 'MEG2042',
+ 'MEG2043',
+ 'MEG2111',
+ 'MEG2112',
+ 'MEG2113',
+ 'MEG2121',
+ 'MEG2122',
+ 'MEG2123',
+ 'MEG2131',
+ 'MEG2132',
+ 'MEG2133',
+ 'MEG2141',
+ 'MEG2142',
+ 'MEG2143',
+ 'MEG2211',
+ 'MEG2212',
+ 'MEG2213',
+ 'MEG2221',
+ 'MEG2222',
+ 'MEG2223',
+ 'MEG2231',
+ 'MEG2232',
+ 'MEG2233',
+ 'MEG2241',
+ 'MEG2242',
+ 'MEG2243',
+ 'MEG2311',
+ 'MEG2312',
+ 'MEG2313',
+ 'MEG2321',
+ 'MEG2322',
+ 'MEG2323',
+ 'MEG2331',
+ 'MEG2332',
+ 'MEG2333',
+ 'MEG2341',
+ 'MEG2342',
+ 'MEG2343',
+ 'MEG2411',
+ 'MEG2412',
+ 'MEG2413',
+ 'MEG2421',
+ 'MEG2422',
+ 'MEG2423',
+ 'MEG2431',
+ 'MEG2432',
+ 'MEG2433',
+ 'MEG2441',
+ 'MEG2442',
+ 'MEG2443',
+ 'MEG2511',
+ 'MEG2512',
+ 'MEG2513',
+ 'MEG2521',
+ 'MEG2522',
+ 'MEG2523',
+ 'MEG2531',
+ 'MEG2532',
+ 'MEG2533',
+ 'MEG2541',
+ 'MEG2542',
+ 'MEG2543',
+ 'MEG2611',
+ 'MEG2612',
+ 'MEG2613',
+ 'MEG2621',
+ 'MEG2622',
+ 'MEG2623',
+ 'MEG2631',
+ 'MEG2632',
+ 'MEG2633',
+ 'MEG2641',
+ 'MEG2642',
+ 'MEG2643']
+
+def char2num(seq):
+    """convert list of chars to integers eg ABC=>012"""
+    if isinstance(seq, str):
+        seq = list(seq)
+    assert ord('A')-65 == 0
+    nums = [ord(c.upper())-65 for c in seq]
+    assert all([0<=n<=90 for n in nums])
+    return nums
+
+def num2char(arr):
+    """convert list of ints to alphabetical chars eg 012=>ABC"""
+    if isinstance(arr, int):
+        return chr(arr+65)
+    arr = np.array(arr, dtype=int)
+    return np.array([chr(x+65) for x in arr.ravel()]).reshape(*arr.shape)
+
+def seq2tf(sequence, n_states=None):
+    """
+    create a transition matrix from a sequence string,
+    e.g. ABCDEFG
+    Please note that sequences will not be wrapping automatically,
+    i.e. a wrapping sequence should be denoted by appending the first state.
+
+    :param sequence: sequence in format "ABCD..."
+    :param seqlen: if not all states are part of the sequence,
+                   the number of states can be specified
+                   e.g. if the sequence is ABE, but there are also states F,G
+                   n_states would be 7
+
+    """
+
+    seq = char2num(sequence)
+    if n_states is None:
+        n_states = max(seq)+1
+    # assert max(seq)+1==n_states, 'not all positions have a transition'
+    TF = np.zeros([n_states, n_states], dtype=int)
+    for i, p1 in enumerate(seq):
+        if i+1>=len(seq): continue
+        p2 = seq[(i+1) % len(seq)]
+        TF[p1, p2] = 1
+    return TF.astype(float)
+
+transition_matrix = seq2tf(seq_12)
