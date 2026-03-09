@@ -18,7 +18,7 @@ import settings
 import seaborn as sns
 import pandas as pd
 from meg_utils import decoding, misc
-from tdlm.utils import simulate_classifier_patterns
+from tdlm.simulation import simulate_classifier_patterns
 
 # reduce OS priority for long simulations
 misc.low_priority()
@@ -74,7 +74,7 @@ perf_scale = lambda perf: -perf + 1 + min(performances)  # inverse linear relati
 
 for subj in tqdm(range(n_subj)):
     # simulate 60 s resting state with 306 sensors
-    rs = tdlm.utils.simulate_meeg(60, sfreq, 306, rng=misc.make_seed(subj))
+    rs = tdlm.simulation.simulate_meeg(60, sfreq, 306, rng=misc.make_seed(subj))
 
     # simulate training trials + class patterns (peak timepoint patterns)
     train_x, train_y, patterns = simulate_classifier_patterns(
@@ -106,7 +106,7 @@ for subj in tqdm(range(n_subj)):
         insert_labels = np.arange(10)   # corresponding state labels 0..9
 
         # insert sequential replay events into resting state
-        rs_sim = tdlm.utils.insert_events(
+        rs_sim = tdlm.simulation.insert_events(
             rs.copy()[:],
             insert_data,
             insert_labels,

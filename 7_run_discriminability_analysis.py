@@ -267,7 +267,7 @@ for s, subj in enumerate(tqdm(subjects_incl)):
     insert_labels = sorted(set(train_y))
 
     # insert into a short RS segment (memory-safe) and track onsets for labeling
-    rs_sim, df_onset = tdlm.utils.insert_events(
+    rs_sim, df_onset = tdlm.simulation.insert_events(
         rs1[subj][:2000],
         sequence=sequence,
         lag=2,                 # smaller lag to reduce computation here
@@ -308,8 +308,8 @@ for s, subj in enumerate(tqdm(subjects_incl)):
     clf2 = decoding.LogisticRegressionOvaNegX(C=C, penalty="l1", neg_x_ratio=1, rng=0)
 
     # generate synthetic M/EEG + synthetic class patterns used for insertion
-    rs = tdlm.utils.simulate_meeg(20, sfreq, 306, rng=misc.make_seed(subj))
-    train_x, train_y, patterns = tdlm.utils.simulate_classifier_patterns(
+    rs = tdlm.simulation.simulate_meeg(20, sfreq, 306, rng=misc.make_seed(subj))
+    train_x, train_y, patterns = tdlm.simulation.simulate_classifier_patterns(
         n_patterns=10,
         n_channels=306,
         noise=4,
@@ -329,7 +329,7 @@ for s, subj in enumerate(tqdm(subjects_incl)):
 
     # precompute inserted RS segments and decoded probabilities across strengths (parallelized)
     res1 = pool(
-        delayed(tdlm.utils.insert_events)(
+        delayed(tdlm.simulation.insert_events)(
             rs,
             insert_data=patterns*strength,
             insert_labels=np.arange(10),

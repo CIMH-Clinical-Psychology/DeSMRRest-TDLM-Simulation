@@ -172,7 +172,7 @@ subjects_incl = sorted(set(subjects).difference(set(df_excluded.index)))
 
 #%% SUPPL: RS1 vs RS2 no alpha
 
-tp = np.mean(list(best_tp.values())).astype(int)
+tp = best_tp
 
 # put forward and backward sequenceness per subject for RS1/RS2 in these arrays
 rs1_sf = np.full([len(subjects_incl), n_shuf, max_lag+1], np.nan)
@@ -377,14 +377,16 @@ utils.savefig(fig, 'supplement/MATLAB-probabilities-lineplot.svg')
 utils.savefig(fig, 'supplement/MATLAB-probabilities-lineplot.eps')
 
 #%% SUPPL: Raw probabilities per class
-from meg_utils.decoding import cross_validation_across_time
+import meg_utils
+
 ex_per_fold = 8
 
 df_proba = pd.DataFrame()
 for subj in tqdm(subjects, desc='calculating probas'):
 
     data_x, data_y = localizer[subj]
-    df_subj, probas = cross_validation_across_time(data_x, data_y, subj=subj,
+    df_subj, probas = meg_utils.decoding.cross_validation_across_time(
+                                                   data_x, data_y, subj=subj,
                                                    n_jobs=-1, tmin=-0.1, tmax=0.5,
                                                    ex_per_fold=ex_per_fold, clf=clf,
                                                    return_probas=True, verbose=False)

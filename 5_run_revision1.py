@@ -116,9 +116,6 @@ n_jobs = -1
 if not final_calculation:
     print('not running final calculation yet, only use this for final paper calculation')
 
-# cached per-subject best timepoint map (fallback identity for debugging)
-best_tp = utils.load_pkl(f"{settings.cache_dir}/best_tp.pkl.zip", {31: 31})
-
 # color code subjects by memory performance for some plots
 palette = sns.color_palette("ch:start=.2,rot=-.3", n_colors=101)
 hues = {subj: palette[int(100*(get_performance(subj)-0.5)*2)] for subj in subjects}
