@@ -24,6 +24,10 @@ conda create --name tdlm-sim python=3.13.11
 conda activate tdlm-sim
 # assuming you are in the folder of the repository
 pip install -r requirements.txt
+
+# initialize meg-utils submodule
+git submodule init
+git submodule update
 ```
 
 ### 2. Download and setup
@@ -73,3 +77,4 @@ python 2_run_study1.py
 ```
 
 All plots should appear in your `plot_dir` which you defined in your `settings.py`.
+
