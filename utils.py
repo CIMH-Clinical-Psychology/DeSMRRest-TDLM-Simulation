@@ -19,7 +19,7 @@ from pathlib import Path
 from types import ModuleType
 import pandas as pd
 from scipy.stats import ttest_1samp
-import compress_pickle
+import joblib
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
@@ -249,7 +249,7 @@ def load_pkl_pandas(pkl_file, default=None):
 
 def load_pkl(pkl_file, default):
     if os.path.isfile(pkl_file):
-        return compress_pickle.load(pkl_file)
+        return joblib.load(pkl_file)
     return default
 
 

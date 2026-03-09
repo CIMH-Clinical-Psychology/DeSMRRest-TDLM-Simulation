@@ -352,7 +352,6 @@ utils.savefig(fig, 'supplement/sensor-values-before-after-insertion.png')
 
 # ## plot probabilities at baseline for subjects
 # stop
-# df_sequenceness = compress_pickle.load(pkl_sequencenes)
 
 
 fig, axs = plt.subplots(1, 2, figsize=[12,6])
