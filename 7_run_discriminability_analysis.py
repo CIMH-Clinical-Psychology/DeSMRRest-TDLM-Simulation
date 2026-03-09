@@ -1,4 +1,3 @@
-```python
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
@@ -515,4 +514,5 @@ ax.legend(title='Estimated signal strength', loc='upper left', fontsize=12)
 fig.suptitle('Pattern Discriminability of Simulated Data and Localizer')
 fig.tight_layout()
 utils.savefig(fig, 'supplement/signal-strength-probabilities.png')
-```
+utils.savefig(fig, 'supplement/signal-strength-probabilities.svg')
+utils.savefig(fig, 'supplement/signal-strength-probabilities.eps')

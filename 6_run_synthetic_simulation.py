@@ -1,4 +1,3 @@
-```python
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
@@ -170,6 +169,8 @@ ax.set_ylim([-1.2, 4.4])
 utils.normalize_lims(axs, which='y')
 sns.despine(fig)
 utils.savefig(fig, 'supplement/synthetic-simulation-sequenceness-examples.png')
+utils.savefig(fig, 'supplement/synthetic-simulation-sequenceness-examples.svg')
+utils.savefig(fig, 'supplement/synthetic-simulation-sequenceness-examples.eps')
 
 #### forward sequenceness at the simulated lag (80 ms) across densities + null thresholds
 
@@ -254,4 +255,5 @@ ax.legend()
 ax.set_title('Sign-flip Permutation t-values')
 
 utils.savefig(fig, f'figure/simulation-synthetic-{lag_sim*10}ms-sequenceness.png')
-```
+utils.savefig(fig, f'figure/simulation-synthetic-{lag_sim*10}ms-sequenceness.svg')
+utils.savefig(fig, f'figure/simulation-synthetic-{lag_sim*10}ms-sequenceness.eps')

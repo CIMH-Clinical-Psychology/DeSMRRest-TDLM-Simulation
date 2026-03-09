@@ -123,7 +123,7 @@ if not final_calculation:
 
 # best_tp will be calculated and replaced later, for debugging it is sometimes
 # easier to define it here, so you can run segments without computing everything
-best_tp = utils.load_pkl(f"{settings.cache_dir}/best_tp.pkl.zip", {31:31})
+best_tp = utils.load_pkl(f"{settings.cache_dir}/best_tp.pkl.zip", 31)
 
 palette = sns.color_palette("ch:start=.2,rot=-.3", n_colors=101)
 hues = {subj:palette[int(100*(get_performance(subj)-0.5)*2)] for subj in subjects}
@@ -171,8 +171,6 @@ df_excluded.sort_index(inplace=True)
 
 subjects_incl = sorted(set(subjects).difference(set(df_excluded.index)))
 
-
-raise misc.Stop('data loaded. continue?')
 #%% %%% STUDY 1
 # %% general description
 
@@ -234,6 +232,7 @@ sns.despine()
 plt.tight_layout()
 fig.savefig(results_dir + "/memory_performance.png")
 fig.savefig(results_dir + "/memory_performance.svg")
+fig.savefig(results_dir + "/memory_performance.eps")
 
 
 perf_first, perf_last, perf_test = df_stats_blocks.groupby("block")
@@ -290,6 +289,8 @@ ax.set_title(f'Best decoding at L1 ~C={best_C:.1f}')
 plt.pause(0.1)
 plt.tight_layout()
 utils.savefig(fig, 'supplement/regularization_C_crossval.png')
+utils.savefig(fig, 'supplement/regularization_C_crossval.svg')
+utils.savefig(fig, 'supplement/regularization_C_crossval.eps')
 #%% localizer decoding accuracy
 
 # (basically a copy of previous publication code)
@@ -397,6 +398,7 @@ plt.tight_layout()
 plt.pause(0.1)
 fig.savefig(results_dir + "/localizer_decoding.svg", bbox_inches="tight")
 fig.savefig(results_dir + "/localizer_decoding.png", bbox_inches="tight")
+fig.savefig(results_dir + "/localizer_decoding.eps", bbox_inches="tight")
 
 #%% localizer heatmap transfer across time
 
@@ -444,9 +446,9 @@ clusters_sum1 = (np.array(clusters1)[p_values1 < 0.05]).sum(0)
 
 # now plot the heatmaps with masking using MNE visualization functions
 fig = plt.figure(figsize=[8, 6])
-axs = fig.subplots(1, 1)
+ax = fig.subplots(1, 1)
 x = mne.viz.utils._plot_masked_image(
-    axs[0],
+    ax,
     np.mean(maps_localizer, 0),
     times=range(61),
     mask=clusters_sum1,
@@ -470,10 +472,11 @@ ax.set_ylabel(
 fig.tight_layout()
 fig.savefig(results_dir + "/classifier-transfer.svg")
 fig.savefig(results_dir + "/classifier-transfer.png")
+fig.savefig(results_dir + "/classifier-transfer.eps")
 
 #%% RS1 vs RS2
 
-tp = np.mean(list(best_tp.values())).astype(int)
+tp = best_tp
 
 clf.set_params(C=best_C)
 # put forward and backward sequenceness per subject for RS1/RS2 in these arrays
@@ -710,6 +713,8 @@ for i, diff in enumerate([diff_sf, diff_sb]):
     print(clusters1, p_values1)
 
 utils.savefig(fig, f'figure/sequenceness_rs.png')
+utils.savefig(fig, f'figure/sequenceness_rs.svg')
+utils.savefig(fig, f'figure/sequenceness_rs.eps')
 
 #%% correlation with behaviour
 fig2, axs2 = plt.subplots(2, 2, figsize=[12,8 ])
@@ -741,6 +746,8 @@ fig2.suptitle('Correlation between performance deltas and peak sequenceness')
 plt.pause(0.1)
 fig2.tight_layout()
 utils.savefig(fig2, f'supplement/correlation_pre-post-difference.png')
+utils.savefig(fig2, f'supplement/correlation_pre-post-difference.svg')
+utils.savefig(fig2, f'supplement/correlation_pre-post-difference.eps')
 #%% RS1RS2 all sequenceness curves in one plot
 
 df_rs1rs2 = pd.DataFrame()
@@ -762,6 +769,8 @@ for i, sx in enumerate([rs1_sf, rs2_sf, rs1_sb, rs2_sb]):
 fig.suptitle('Individual Sequenceness Curves of Participants')
 utils.normalize_lims(axs)
 utils.savefig(fig, 'supplement/sequenceness-individualplots.png')
+utils.savefig(fig, 'supplement/sequenceness-individualplots.svg')
+utils.savefig(fig, 'supplement/sequenceness-individualplots.eps')
 
 #%% RS1 vs RS2 segments
 
@@ -847,9 +856,11 @@ fig.tight_layout(rect = [0, 0, 0.88, 1])
 cbar_ax.set_ylabel('sequenencess\n(u.u. zscored)', labelpad=10)
 cbar_ax.yaxis.set_label_position("left")
 utils.savefig(fig, 'figure/sequencess_blocks_heatmap.png', tight=False)
+utils.savefig(fig, 'figure/sequencess_blocks_heatmap.svg', tight=False)
+utils.savefig(fig, 'figure/sequencess_blocks_heatmap.eps', tight=False)
 
 # plot separately, as otherwise it get's too crowded in the plot
-fig1, axs = plt.subplots(2, 4, figsize=[16, 8])
+fig1, axs = plt.subplots(2, 4, figsize=[16, 8], sharex=True, sharey=True)
 axs = axs.flatten()
 for seg in range(8):
     # first plot RS sequenceness individually
@@ -857,9 +868,12 @@ for seg in range(8):
                             title=f'Minute {seg+1}', ax=axs[seg])
     fig1.suptitle('Sequenceness Control Resting State ')
     axs[seg].legend(loc='upper left', ncols=2)
+plt.pause(0.1)
 utils.savefig(fig1, 'supplement/segments-rs1.png')
+utils.savefig(fig1, 'supplement/segments-rs1.svg')
+utils.savefig(fig1, 'supplement/segments-rs1.eps')
 
-fig2, axs = plt.subplots(2, 4, figsize=[16, 8])
+fig2, axs = plt.subplots(2, 4, figsize=[16, 8], sharex=True, sharey=True)
 axs = axs.flatten()
 for seg in range(8):
     # first plot RS sequenceness individually
@@ -867,7 +881,11 @@ for seg in range(8):
                             title=f'Minute {seg+1}', ax=axs[seg])
     fig2.suptitle('Sequenceness Post-Learning Resting State ')
     axs[seg].legend(loc='upper left', ncols=2)
+plt.pause(0.1)
+
 utils.savefig(fig2, 'supplement/segments-rs2.png')
+utils.savefig(fig2, 'supplement/segments-rs2.svg')
+utils.savefig(fig2, 'supplement/segments-rs2.eps')
 
 
 
@@ -929,6 +947,8 @@ axs[-1].axis("off")
 axs[-2].axis("off")
 
 utils.savefig(fig, f'supplement/insertion_patterns.png')
+utils.savefig(fig, f'supplement/insertion_patterns.svg')
+utils.savefig(fig, f'supplement/insertion_patterns.eps')
 
 #%% SUPPL: visualize ERP
 from meg_utils import plotting
@@ -961,6 +981,7 @@ plt.pause(0.1)
 fig.tight_layout
 fig.savefig(results_dir + "/image-ERP.svg")
 fig.savefig(results_dir + "/image-ERP.png")
+fig.savefig(results_dir + "/image-ERP.eps")
 
 #%% SUPPL: visualize sensors betas
 from meg_utils import plotting
@@ -1000,3 +1021,4 @@ plt.pause(0.1)
 fig.tight_layout
 fig.savefig(results_dir + "/S6 sensorlocation.svg")
 fig.savefig(results_dir + "/S6 sensorlocation.png")
+fig.savefig(results_dir + "/S6 sensorlocation.eps")

@@ -231,6 +231,8 @@ for i, (sf, sb) in enumerate([[rs1_sf, rs1_sb], [rs2_sf, rs2_sb]]):
 
 fig.suptitle('Differential Forward-Backward Sequenceness within Session')
 utils.savefig(fig, 'supplement/sequenceness-fwd-bkw.png')
+utils.savefig(fig, 'supplement/sequenceness-fwd-bkw.svg')
+utils.savefig(fig, 'supplement/sequenceness-fwd-bkw.eps')
 
 #%% bootstrapped sequenceness powermaps (state-permutation thresholds)
 # power defined as fraction of bootstraps where mean sequenceness exceeds threshold
@@ -378,6 +380,8 @@ ax.set_xticks([0, 25, 50, 75, 100, 150, 200])
 ax.set_yticks(np.arange(20, 200, 20))
 
 plotting.savefig(fig, 'supplement/bootstrapped-powermap.png')
+plotting.savefig(fig, 'supplement/bootstrapped-powermap.svg')
+plotting.savefig(fig, 'supplement/bootstrapped-powermap.eps')
 
 #%% APPENDIX A: sim variants
 
@@ -466,6 +470,8 @@ for i, density in enumerate([0, 40, 80, 120]):
 
 sns.despine(fig)
 utils.savefig(fig, 'supplement/rev1-simulation-seqlim-sequenceness-examples.png')
+utils.savefig(fig, 'supplement/rev1-simulation-seqlim-sequenceness-examples.svg')
+utils.savefig(fig, 'supplement/rev1-simulation-seqlim-sequenceness-examples.eps')
 
 rs_sim_sf_normed = zscore_multiaxis(sf_sim_seq, axes=zscore_axes)
 fig, ax = plt.subplots(1, 1, figsize=[12, 6])
@@ -497,6 +503,8 @@ ax.legend(loc='lower right')
 sns.despine()
 fig.suptitle(f'Forward {lag_sim*10} ms sequenceness at simulated replay densities')
 utils.savefig(fig, f'supplement/rev1-simulation-seqlim--{lag_sim*10}ms-sequenceness.png')
+utils.savefig(fig, f'supplement/rev1-simulation-seqlim--{lag_sim*10}ms-sequenceness.svg')
+utils.savefig(fig, f'supplement/rev1-simulation-seqlim--{lag_sim*10}ms-sequenceness.eps')
 
 #%% simulate burst vs uniform replay
 from meg_utils import misc
@@ -669,6 +677,8 @@ sns.despine(fig)
 utils.normalize_lims(axs[0, :])
 fig.suptitle('TDLM with simulated bursty replay at 80 min⁻¹', fontsize=22)
 utils.savefig(fig, 'supplement/bursty-vs-uniform-replay.png')
+utils.savefig(fig, 'supplement/bursty-vs-uniform-replay.svg')
+utils.savefig(fig, 'supplement/bursty-vs-uniform-replay.eps')
 
 #%% simulate shortened vs full transitions
 # simulate whether simulating ABCDE or ABABA makes a difference,
@@ -793,6 +803,8 @@ for i, sxx in enumerate([[sf_sim_orig, sb_sim_orig], [sf_sim_short, sb_sim_short
 sns.despine()
 fig.suptitle('Simulating all graph transitions vs. transitions that were actually remembered\n(density 80 min⁻¹ @ 80ms time lag)')
 utils.savefig(fig, f'supplement/rev1-simulation-seq-full-sequence-vs-subset.png')
+utils.savefig(fig, f'supplement/rev1-simulation-seq-full-sequence-vs-subset.svg')
+utils.savefig(fig, f'supplement/rev1-simulation-seq-full-sequence-vs-subset.eps')
 
 #%% simulate ABC vs AB BC
 # does it make a difference whether ABC are in a row or if they are separate
@@ -908,6 +920,8 @@ for i, sxx in enumerate([[sf_sim_1step, sb_sim_1step], [sf_sim_2step, sb_sim_2st
 sns.despine()
 fig.suptitle('Doublet vs triplet replay with fixed number of 1-step transitions')
 utils.savefig(fig, f'supplement/rev1-simulation-seq-ABC-vs-AB-BC.png')
+utils.savefig(fig, f'supplement/rev1-simulation-seq-ABC-vs-AB-BC.svg')
+utils.savefig(fig, f'supplement/rev1-simulation-seq-ABC-vs-AB-BC.eps')
 
 #%% simulate longer replay sequences
 #### calculation
@@ -1102,3 +1116,5 @@ for i, step in enumerate(n_steps):
 fig.tight_layout()
 fig.suptitle('Simulating longer replay events')
 plotting.savefig(fig, 'supplement/multistep-simulation.png')
+plotting.savefig(fig, 'supplement/multistep-simulation.svg')
+plotting.savefig(fig, 'supplement/multistep-simulation.eps')

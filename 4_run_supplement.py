@@ -170,8 +170,6 @@ df_excluded.sort_index(inplace=True)
 subjects_incl = sorted(set(subjects).difference(set(df_excluded.index)))
 
 
-raise misc.Stop('data loaded. continue?')
-
 #%% SUPPL: RS1 vs RS2 no alpha
 
 tp = np.mean(list(best_tp.values())).astype(int)
@@ -318,6 +316,8 @@ fig.suptitle('Sequenceness of Resting States without Control for Alpha Oscillati
 plt.pause(0.1)
 fig.tight_layout()
 utils.savefig(fig, f'supplement/sequenceness_rs_noalpha.png')
+utils.savefig(fig, f'supplement/sequenceness_rs_noalpha.svg')
+utils.savefig(fig, f'supplement/sequenceness_rs_noalpha.eps')
 
 
 #%% SUPPL: TDLM MATLAB simulation probabilities
@@ -358,6 +358,8 @@ sns.boxplot(data=df_proba, x='condition', y='proba', hue='class', ax=ax)
 ax.set_ylabel('classifier probability estimate')
 ax.set_title(f'MATLAB Simulation \nDecoded probability of item\nat baseline and with added pattern')
 utils.savefig(fig, f'supplement/MATLAB-probabilities-boxplot.png')
+utils.savefig(fig, f'supplement/MATLAB-probabilities-boxplot.svg')
+utils.savefig(fig, f'supplement/MATLAB-probabilities-boxplot.eps')
 
 fig = plt.figure(figsize=[6,6])
 # hues = {subj:palette[int(100*(get_performance(subj)-0.5)*2)] for subj in subjects}
@@ -371,6 +373,8 @@ sns.lineplot(data=df_proba_target, x='condition', y='proba', hue='subject',
 plt.ylabel('classifier probability estimate')
 plt.title(f'MATLAB Simulation\nClassifier Probabilities in Resting State')
 utils.savefig(fig, 'supplement/MATLAB-probabilities-lineplot.png')
+utils.savefig(fig, 'supplement/MATLAB-probabilities-lineplot.svg')
+utils.savefig(fig, 'supplement/MATLAB-probabilities-lineplot.eps')
 
 #%% SUPPL: Raw probabilities per class
 from meg_utils.decoding import cross_validation_across_time
@@ -428,6 +432,8 @@ plotting.normalize_lims(list(axs))
 fig.tight_layout()
 plt.pause(0.1)
 fig.savefig(settings.plot_dir + f'localizer_perclass.png')
+fig.savefig(settings.plot_dir + f'localizer_perclass.svg')
+fig.savefig(settings.plot_dir + f'localizer_perclass.eps')
 
 
 
@@ -497,6 +503,8 @@ for i, subj in enumerate(tqdm(subjects_incl, desc="subject")):
         ax.set_yticks(np.arange(10), settings.stim_translation)
     fig.suptitle(f'Normalized probas correlation coefficients for {subj=}')
     utils.savefig(fig,  f'/corrcoeff/corrcoef_{subj}.png')
+    utils.savefig(fig,  f'/corrcoeff/corrcoef_{subj}.svg')
+    utils.savefig(fig,  f'/corrcoeff/corrcoef_{subj}.eps')
 
     # calculate sequenceness
     seed = utils.get_id(subj)*42
@@ -579,6 +587,8 @@ for i, subj in enumerate(tqdm(subjects_incl, desc="subject")):
     ax_spec[1].legend(frameon=False)
     # for ax in ax_spec: ax.set_ylim(0, 0.5)
     utils.savefig(fig_spec, f'/spectrum/proba_spectrum_{subj}.png')
+    utils.savefig(fig_spec, f'/spectrum/proba_spectrum_{subj}.svg')
+    utils.savefig(fig_spec, f'/spectrum/proba_spectrum_{subj}.eps')
 
     utils.plot_rest_state_spectrograms(rs1[subj],
                                        rs1_filt,
@@ -601,6 +611,8 @@ for ax in axs.flat:
     ax.set_yticks(np.arange(10), settings.stim_translation)
 fig.suptitle(f'Normalized proba correlation coefficients for n={len(subjects_incl)}')
 utils.savefig(fig,  f'/corrcoeff/corrcoef_all.png')
+utils.savefig(fig,  f'/corrcoeff/corrcoef_all.svg')
+utils.savefig(fig,  f'/corrcoeff/corrcoef_all.eps')
 
 for ax in ax_spec.flat: ax.clear()
 ax_spec[0].plot(freqs[mask], Pxx_rs1[mask],  label='raw')
@@ -612,6 +624,8 @@ ax_spec[1].set(title='RS2', xlim=(0, 35), xlabel='Hz')
 ax_spec[1].legend(frameon=False)
 fig_spec.suptitle('Spectrum of probabilities')
 utils.savefig(fig_spec, f'/spectrum/proba_spectrum_{subj}.png')
+utils.savefig(fig_spec, f'/spectrum/proba_spectrum_{subj}.svg')
+utils.savefig(fig_spec, f'/spectrum/proba_spectrum_{subj}.eps')
 
 sns.set_context('talk')
 fig, axes = plt.subplots(2, 2, figsize=(12, 8), sharex=True, sharey=True)
@@ -716,6 +730,8 @@ ax.legend(title=None, loc='upper center', bbox_to_anchor=(0.5,1.25), ncol=2)
 sns.despine()
 plt.tight_layout()
 utils.savefig(plt.gcf(), 'reg_corr_seaborn.png')
+utils.savefig(plt.gcf(), 'reg_corr_seaborn.svg')
+utils.savefig(plt.gcf(), 'reg_corr_seaborn.eps')
 
 # 2. sequenceness vs metrics on separate axes
 df_seqx = df_seq.merge(df_reg, on=['C','subj'])
@@ -735,6 +751,8 @@ for pred, label in preds.items():
         ax.set(title=f'{seq_metric} vs {label}', xlabel=label, ylabel='sequenceness', xscale='log')
     fig.tight_layout()
     utils.savefig(fig, f'seq_vs_{pred}.png')
+    utils.savefig(fig, f'seq_vs_{pred}.svg')
+    utils.savefig(fig, f'seq_vs_{pred}.eps')
 
 #%% EXTRA: heatmap of sequenceness
 
@@ -803,6 +821,8 @@ for C in [0.01, 0.1, 1, 5, 9.1, 20]:
     plotting.normalize_lims(axs, 'v')
     fig.suptitle(f'Sequenceness as function of train timepoint (no zscore) {C=}')
     utils.savefig(fig, f'/heatmap/train_timepoint_sequencess_no_zscore_C{C}.png')
+    utils.savefig(fig, f'/heatmap/train_timepoint_sequencess_no_zscore_C{C}.svg')
+    utils.savefig(fig, f'/heatmap/train_timepoint_sequencess_no_zscore_C{C}.eps')
 
 
     ###### with ZSCORE
@@ -837,3 +857,5 @@ for C in [0.01, 0.1, 1, 5, 9.1, 20]:
         plotting.normalize_lims(axs, 'v')
         fig.suptitle(f'Sequenceness as function of train timepoint (zscore across {axis=} {name}) {C=}')
         utils.savefig(fig, f'/heatmap/train_timepoint_sequencess_zscore-axis{axis}_C{C}.png')
+        utils.savefig(fig, f'/heatmap/train_timepoint_sequencess_zscore-axis{axis}_C{C}.svg')
+        utils.savefig(fig, f'/heatmap/train_timepoint_sequencess_zscore-axis{axis}_C{C}.eps')

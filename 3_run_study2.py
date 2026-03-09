@@ -112,7 +112,7 @@ best_C = 9.1  # cross-validated regularization strength
 # refractory period to block before and after each event that we insert
 # before, twice the lag must be blocked, as other events can else be put right
 # beforehand and their second reactivation would reach into the next one
-# After, only one lag must be blocked. See tdlm.utils.insert_events for details
+# After, only one lag must be blocked. See tdlm.simulation.insert_events
 refractory = [lag_sim*2, lag_sim]
 
 
@@ -153,7 +153,6 @@ for subj in tqdm(subjects, desc="Loading data"):
     # individual sequences for the trials (maybe not necessary)
     seqs[subj] = utils.get_sequences(subj)
 
-
 max_accuracy = [utils.get_decoding_accuracy(subj, clf=clf, n_splits=20)[0] for subj in subjects]
 test_performance = [utils.get_performance(subj, which='test') for subj in subjects]
 df_subjects = pd.DataFrame({'subject': subjects,
@@ -173,9 +172,6 @@ df_excluded = pd.DataFrame({'reason': ['low decoding']*len(excluded_acc) + \
 df_excluded.sort_index(inplace=True)
 
 subjects_incl = sorted(set(subjects).difference(set(df_excluded.index)))
-
-
-raise misc.Stop('data loaded. continue?')
 
 #%%  %%% STUDY 2:  SIMULATION
 #%% Sim-decodability in RS
@@ -251,7 +247,7 @@ for i, subj in enumerate(tqdm(subjects, desc="subject")):
 
     # insert into resting state data
     rs_pre = rs1[subj]
-    rs_sim, df_onsets = tdlm.utils.insert_events(data = rs_pre,
+    rs_sim, df_onsets = tdlm.simulation.insert_events(data = rs_pre,
                                                  insert_data = insert_data,
                                                  insert_labels = insert_labels,
                                                  sequence = sequence,
@@ -291,17 +287,17 @@ for i, subj in enumerate(tqdm(subjects, desc="subject")):
     # inserted probability positions - target and non-target class
     # non-inserted positions - target and non-target class
     proba_pre_target = [proba_pre[row.pos][row.class_idx] for _, row in df_onsets.iterrows()]
-    proba_pre_nontarget = list(np.ravel([proba_pre[row.pos][~np.in1d(range(10), 5)] for _, row in df_onsets.iterrows()]))
+    proba_pre_nontarget = list(np.ravel([proba_pre[row.pos][~np.isin(range(10), 5)] for _, row in df_onsets.iterrows()]))
 
     proba_sim_target = [proba_sim[row.pos][row.class_idx] for _, row in df_onsets.iterrows()]
-    proba_sim_nontarget = list(np.ravel([proba_sim[row.pos][~np.in1d(range(10), 5)] for _, row in df_onsets.iterrows()]))
+    proba_sim_nontarget = list(np.ravel([proba_sim[row.pos][~np.isin(range(10), 5)] for _, row in df_onsets.iterrows()]))
 
     ## also add the non-normalized version
     proba_pre_target_raw = [proba_pre_raw[row.pos][row.class_idx] for _, row in df_onsets.iterrows()]
-    proba_pre_nontarget_raw = list(np.ravel([proba_pre_raw[row.pos][~np.in1d(range(10), 5)] for _, row in df_onsets.iterrows()]))
+    proba_pre_nontarget_raw = list(np.ravel([proba_pre_raw[row.pos][~np.isin(range(10), 5)] for _, row in df_onsets.iterrows()]))
 
     proba_sim_target_raw = [proba_sim_raw[row.pos][row.class_idx] for _, row in df_onsets.iterrows()]
-    proba_sim_nontarget_raw = list(np.ravel([proba_sim_raw[row.pos][~np.in1d(range(10), 5)] for _, row in df_onsets.iterrows()]))
+    proba_sim_nontarget_raw = list(np.ravel([proba_sim_raw[row.pos][~np.isin(range(10), 5)] for _, row in df_onsets.iterrows()]))
 
 
     df_proba_subj = pd.DataFrame({'proba': proba_pre_target + proba_pre_nontarget +
@@ -330,6 +326,8 @@ sns.boxplot(data=df_proba, x='condition', y='proba', hue='class', ax=ax)
 ax.set_ylabel('normalized classifier\nprobability estimate')
 ax.set_title(f'Decoded probability of item\nat baseline and with added pattern')
 utils.savefig(fig, f'supplement/rs_sim_decodability_norm_mode-{mode}.png')
+utils.savefig(fig, f'supplement/rs_sim_decodability_norm_mode-{mode}.svg')
+utils.savefig(fig, f'supplement/rs_sim_decodability_norm_mode-{mode}.eps')
 
 fig = plt.figure(figsize=[6, 4])
 ax = fig.subplots(1,1)
@@ -337,6 +335,8 @@ sns.boxplot(data=df_acc, x='condition', y='accuracy', ax=ax)
 ax.set_ylabel('decoding accuracy')
 ax.set_title(f'Decoding accuracy of item\nat baseline and with added pattern')
 utils.savefig(fig, 'supplement/rs_sim_accuracy_norm_mode-{mode}.png')
+utils.savefig(fig, 'supplement/rs_sim_accuracy_norm_mode-{mode}.svg')
+utils.savefig(fig, 'supplement/rs_sim_accuracy_norm_mode-{mode}.eps')
 
 fig, ax = plt.subplots(1, 1, figsize=[6, 4])
 sns.histplot(data=df_datastat, x='data', hue='type', bins=300, kde=False,
@@ -348,6 +348,8 @@ ax.set_xlim(-0.5, 0.5)
 ax.set_title('Sensor values at baseline\nand with added pattern')
 sns.despine()
 utils.savefig(fig, 'supplement/sensor-values-before-after-insertion.png')
+utils.savefig(fig, 'supplement/sensor-values-before-after-insertion.svg')
+utils.savefig(fig, 'supplement/sensor-values-before-after-insertion.eps')
 
 
 # ## plot probabilities at baseline for subjects
@@ -368,6 +370,8 @@ for y, ax in zip(['proba_raw', 'proba'], axs):
     ax.set_title('Before normalization' if y=='proba_raw' else 'After normalization')
 fig.suptitle('Classifier probabilities across participants')
 utils.savefig(fig, 'supplement/mean-probability-normalization.png')
+utils.savefig(fig, 'supplement/mean-probability-normalization.svg')
+utils.savefig(fig, 'supplement/mean-probability-normalization.eps')
 
 
 # ## correlation between baseline probability magnitude and sequenceness
@@ -468,7 +472,7 @@ for name_perf_scale in names_perf_scale:
         # scale the number of replay events by the performance
         n_events_all = [int(np.round(len(rs_pre)/sfreq/60 * dens * scale)) for dens in densities]
 
-        rs_sim_subj = pool(delayed(tdlm.utils.insert_events)(data = rs_pre,
+        rs_sim_subj = pool(delayed(tdlm.simulation.insert_events)(data = rs_pre,
                                       insert_data = insert_data,
                                       insert_labels = np.array(insert_labels),
                                       lag=lag_sim,
@@ -632,6 +636,8 @@ ax.legend()
 ax.set_title('Sign-flip Permutation t-values')
 
 utils.savefig(fig, f'figure/simulation-{lag_sim*10}ms-sequenceness.png')
+utils.savefig(fig, f'figure/simulation-{lag_sim*10}ms-sequenceness.svg')
+utils.savefig(fig, f'figure/simulation-{lag_sim*10}ms-sequenceness.eps')
 
 #%% 2 exemplar 4 density curves
 # fig, axs = plt.subplots(2, 2, figsize=[12, 12])
@@ -653,6 +659,8 @@ for i, density in enumerate([  0,  40,  80, 120]):
 sns.despine(fig)
 fig.suptitle('Simulated replay at different densities')
 utils.savefig(fig, 'figure/simulation-sequenceness-examples.png')
+utils.savefig(fig, 'figure/simulation-sequenceness-examples.svg')
+utils.savefig(fig, 'figure/simulation-sequenceness-examples.eps')
 
 #%% 3 plot sequenceness curves across densities
 
@@ -702,6 +710,8 @@ for d, density in enumerate(densities):
     axs['D'].text(axs['D'].get_xlim()[1], 1.0, f'r={r2:.2f} p={pval2:.3f}', horizontalalignment='right')
     plt.pause(0.1)
     fig.savefig(f'{settings.plot_dir}/simulation_density-{density:03d}_step1.png')
+    fig.savefig(f'{settings.plot_dir}/simulation_density-{density:03d}_step1.svg')
+    fig.savefig(f'{settings.plot_dir}/simulation_density-{density:03d}_step1.eps')
 
 # plot correlation at 160min-1 with performance
 assert name_perf_scale=='linear', 'wrong setting'
@@ -738,6 +748,8 @@ for d, density in enumerate(tqdm(densities)):
 
     utils.normalize_lims(axs[:len(subjects_incl)])
     utils.savefig(fig, f'supplement/simulation_density-all-{density:03d}.png')
+    utils.savefig(fig, f'supplement/simulation_density-all-{density:03d}.svg')
+    utils.savefig(fig, f'supplement/simulation_density-all-{density:03d}.eps')
 
 
 
@@ -797,6 +809,8 @@ ax.set_title('Performance correlation across densities')
 
 sns.despine()
 utils.savefig(fig, 'figure/correlation-densities.png')
+utils.savefig(fig, 'figure/correlation-densities.svg')
+utils.savefig(fig, 'figure/correlation-densities.eps')
 #%% 5b Corr timelag
 
 rs_sim_sf_normed = zscore_multiaxis(rs_sim_sf, axes=zscore_axes)
@@ -832,6 +846,8 @@ ax.legend()
 ax.set_title('Performance correlation across time lags at baseline')
 sns.despine()
 utils.savefig(fig, 'figure/correlation-timelags.png')
+utils.savefig(fig, 'figure/correlation-timelags.svg')
+utils.savefig(fig, 'figure/correlation-timelags.eps')
 
 #%% 5c power curve, bootstrapping
 perf_test = [get_performance(subj=subj, which="test") for subj in subjects_incl]
@@ -880,6 +896,8 @@ ax.hlines(0.8, *ax.get_xlim(), color='gray', alpha=0.5, linestyle='--', label='8
 ax.legend()
 sns.despine()
 utils.savefig(fig, 'figure/correlation-power.png')
+utils.savefig(fig, 'figure/correlation-power.svg')
+utils.savefig(fig, 'figure/correlation-power.eps')
 
 #%% 5d  plot individual sequenceness
 pkl_sim_linear = f'{settings.cache_dir}/simulation-sequenceness-linear.pkl.zip'
@@ -927,3 +945,5 @@ labels = [x for i, x in enumerate(labels) if i in [0, 2, 6]]
 ax.legend(handles, ['50%', '75%', '100%'], loc='upper left', title='Performance')
 
 utils.savefig(fig, 'figure/correlation-bestcase-realistisc-case.png')
+utils.savefig(fig, 'figure/correlation-bestcase-realistisc-case.svg')
+utils.savefig(fig, 'figure/correlation-bestcase-realistisc-case.eps')
