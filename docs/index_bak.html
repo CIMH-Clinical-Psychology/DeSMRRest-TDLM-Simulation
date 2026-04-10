@@ -6,10 +6,10 @@
   <!-- Meta tags for social media banners, these should be filled in appropriatly as they are your "business card" -->
   <!-- Replace the content tag with appropriate information -->
   <meta name="description" content="TDLM-Simulation-Paper">
-  <meta property="og:title" content="Challenges in Replay Detection by TDLM"/>
+  <meta property="og:title" content="TDLM-Resting-State Simulation"/>
   <meta property="og:description" content="How sensitive is TDLM really? Can we actually find replay when we know it is present?"/>
-
-  <meta name="twitter:title" content="Challenges in Replay Detection by TDLM">
+  
+  <meta name="twitter:title" content="TDLM-Resting-State Simulation">
   <meta name="twitter:description" content="How sensitive is TDLM really? Can we actually find replay when we know it is present?">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="twitter:image" content="./images/schematic-simulation.png">
@@ -45,7 +45,7 @@
       <div class="container is-max-desktop">
         <div class="columns is-centered">
           <div class="column has-text-centered">
-            <h1 class="title is-1 publication-title">(Reviewed Preprint) Experiment Visualization for "Challenges in Replay Detection by TDLM in Post-Encoding Resting State"</h1>
+            <h1 class="title is-1 publication-title">(Preprint) Experiment Visualization for "Challenges in Replay Detection by TDLM in Post-Encoding Resting State"</h1>
             <div class="is-size-5 publication-authors">
               <!-- Paper authors -->
               <span class="author-block">
@@ -62,7 +62,7 @@
                   <div class="is-size-5 publication-authors">
                     <span class="author-block">Central Institute of Mental Health<br></span>,
                     <span class="author-block">University of Hamburg<br></span>,
-                    <span class="author-block">University of T&uuml;bingen<br></span>,
+                    <span class="author-block">University of Tübingen<br></span>,
                     <span class="author-block">UCL<br></span>
                   </div>
 
@@ -70,7 +70,7 @@
                     <div class="publication-links">
                          <!-- Arxiv PDF link -->
                       <span class="link-block">
-                        <a href="https://elifesciences.org/articles/108023" target="_blank"
+                        <a href="https://www.biorxiv.org/content/10.1101/2025.06.11.658835v1.full.pdf>.pdf" target="_blank"
                         class="external-link button is-normal is-rounded is-dark">
                         <span class="icon">
                           <i class="fas fa-file-pdf"></i>
@@ -92,7 +92,7 @@
 
                 <!-- ArXiv abstract Link -->
                 <span class="link-block">
-                  <a href="https://www.biorxiv.org/content/10.1101/2025.06.11.658835v3" target="_blank"
+                  <a href="https://www.biorxiv.org/content/10.1101/2025.06.11.658835v1" target="_blank"
                   class="external-link button is-normal is-rounded is-dark">
                   <span class="icon">
                     <i class="ai ai-arxiv"></i>
@@ -118,9 +118,10 @@
         <h2 class="title is-3">Abstract</h2>
         <div class="content has-text-justified">
           <p>
-Using temporally delayed linear modelling (<a href="https://elifesciences.org/articles/66917">TDLM</a>) and magnetoencephalography (MEG), we investigated whether items associated with an underlying graph structure are replayed during a post-learning resting state. In these same data, we previously provided evidence for replay during on-line (non-rest) memory retrieval. Despite successful decoding of brain activity during a localizer task, and contrary to predictions, we found <strong>no evidence for replay</strong> during a post-learning resting state. To better understand this, we performed a hybrid simulation analysis in which we inserted synthetic replay events into a control resting state recorded prior to the actual experiment. This simulation revealed that replay detection using our current pipeline <strong>requires an extremely high replay density</strong> to reach significance (&gt;1 replay sequence per second, with &ldquo;replay&rdquo; defined as a sequence of reactivations within a certain time lag). Furthermore, when scaling the number of replay events with a behavioural measure, we were unable to induce a strong correlation between sequenceness and this measure. We infer that even <strong>if replay was present</strong> at plausible rates in our resting state dataset, we would <strong>lack statistical power to detect it with TDLM</strong>. Finally, contrasting our novel hybrid simulation to existing purely synthetic simulations indicated that the latter approaches <strong>overestimate the sensitivity of TDLM</strong>. We discuss approaches that might optimize the analytic methodology, including identifying boundary conditions under which TDLM can be expected to detect replay. We conclude that solving these methodological constraints will be crucial for optimizing the non-invasive measurement of human replay using MEG.
-          </p>
 
+Using temporally delayed linear modelling (<a href=”https://elifesciences.org/articles/66917”>TDLM</a>) and magnetoencephalography (MEG), we investigated whether items associated with an underlying graph structure are replayed during a post-learning resting state. In these same data, we previously provided evidence for replay during on-line (non-rest) memory retrieval. Despite successful decoding of brain activity during a localizer task, and contrary to predictions, we found <strong>no evidence for replay</strong> during a post-learning resting state. To better understand this, we performed a hybrid simulation analysis in which we inserted synthetic replay events into a control resting state recorded prior to the actual experiment. This simulation revealed that replay detection using our current pipeline <strong>requires an extremely high replay density</strong> to reach significance (&gt;1 replay sequence per second, with “replay” defined as a sequence of reactivations within a certain time lag). Furthermore, when scaling the number of replay events with a behavioural measure, we were unable to induce a strong correlation between sequenceness and this measure. We infer that even <strong>if replay was present</strong> at plausible rates in our resting state dataset, we would <strong>lack statistical power to detect it with TDLM</strong>. Finally, contrasting our novel hybrid simulation to existing purely synthetic simulations indicated that the latter approaches <strong>overestimate the sensitivity of TDLM</strong>. We discuss approaches that might optimize the analytic methodology, including identifying boundary conditions under which TDLM can be expected to detect replay. We conclude that solving these methodological constraints will be crucial for optimizing the non-invasive measurement of human replay using MEG.
+			</p>
+			
 <a href="#results-summary" style="color: lightblue; text-decoration: underline;">Jump to Results Summary</a>        </div>
       </div>
     </div>
@@ -183,7 +184,7 @@ Using temporally delayed linear modelling (<a href="https://elifesciences.org/ar
         <h2 class="title is-4">2. Localizer</h2>
         <div class="content has-text-justified">
           <p>
-10 images, diverse in color&amp;shape were presented to participants.
+10 images, diverse in color&shape were presented to participants. 
 First the word belonging to the image was presented auditorily, then either a matching or non-matching image was shown.
 participants were instructed to press a button in case of mismatch (attention check). This data was later used to train a classifier on these images.
 	</p>
@@ -213,11 +214,11 @@ participants were instructed to press a button in case of mismatch (attention ch
         <h2 class="title is-4">3. Learning</h2>
         <div class="content has-text-justified">
           <p>
-The ten images were embedded into a graph structure.
-The graph had duplicates such that participants could not rely on simple pair-wise
-learning but needed to learn triplets/surrounding. Participants never
+The ten images were embedded into a graph structure. 
+The graph had duplicates such that participants could not rely on simple pair-wise 
+learning but needed to learn triplets/surrounding. Participants never 
 	</p>
-	<p>Participants performed blocks until they reached 80% correct trials.
+	<p>Participants performed blocks until they reached 80% correct trials. 
 	Regardless, they performed a minimum of 2 and a maximum of 6 blocks.</p>
 	<p>Here's a top-down view of the sequence (participants were never told about this hidden structure)</p>
 
@@ -273,7 +274,7 @@ learning but needed to learn triplets/surrounding. Participants never
   </details open>
 
 <!-- -->
-
+		
 <!-------------->
 <!-- RESULTS  -->
 <!-------------->
@@ -282,29 +283,28 @@ learning but needed to learn triplets/surrounding. Participants never
 <br>
 <h1 class="title is-1 publication-title hero is-centered has-text-centered" id="results-summary">Results summary</h1>
 
-<!-- ================= Study 1 ================= -->
+<!-- STUDY 1 -->
 <section class="section">
   <div class="container is-max-desktop">
     <h2 class="title is-3 is-centered has-text-centered">Study 1: No replay found in post-learning rest</h2>
 
-    <!-- Behavioural results & Localizer -->
-    <div class="content">
-      <h3 class="title is-4 is-centered has-text-centered">Localizer: Robust Decoders</h3>
-      <p>We determined the timepoint of best decoding accuracy by running a cross-validation across time. Peak decoding accuracy was at <strong>42% accuracy (chance = 10%)</strong> at <strong>210 milliseconds</strong> after stimulus onset. We trained one logistic regression classifier per class per participant on data from that timepoint (one-vs-all classification).</p>
-      <figure>
-        <img src="./images/figure_localizer.png" alt="Behavioural results and localizer decoding accuracy" style="max-width:100%">
-        <figcaption>Figure 1. Left: Memory performance of participants per block. Middle: Decoding accuracy for each item (chance = 10%) across time. Error bars show &plusmn;1 SEM. Right: Decoding heatmap for training at specific time point and testing on another.</figcaption>
-      </figure>
-    </div>
-  </div>
+    <!-- Localizer subsection -->
+    <h3 class="title is-4 is-centered has-text-centered">Localizer: Robust Decoders</h3>
+	    <div class="content">
+
+    <p class="content">We determined the timepoint of best decoding accuracy by running a cross-validation across time. Peak decoding accuracy was at <strong>42 % accuracy (chance = 10 %)</strong> at <strong>210 milliseconds </strong>after stimulus onset. We trained one logistic regression classifier per class per participant on data from that timepoint (one-vs-all classification).</p>
+    <figure>
+      <img src="./images/figure_localizer.png" alt="Classifier performance across participants" style="max-width:100%">
+	  <figcaption>Figure 1 Left: Memory performance of participants per block. Middle: Decoding accuracy for each item (chance = 10%) across time. Error bars show ±1 SEM. Right: Decoding heatmap for training at specific time point and testing on another.</figcaption>
+	<figure>
+	  </div>
 </section>
 
-<!-- No Sequenceness -->
 <section class="section">
   <div class="container is-max-desktop">
-    <div class="content">
+
       <h3 class="title is-4 is-centered has-text-centered">No Sequenceness During Post-Learning Rest</h3>
-      <p>We applied the trained decoders to the control resting state and the post-learning resting state, expecting replay of sequences to occur during post-learning resting state. The result (a probability estimate of each 10 images/classes for each time point of the resting state) was fed into TDLM to detect sequentiality of reactivations. However, we found <strong>no forward or backward sequenceness</strong> within either 8-minute resting state.</p>
+      <p>We applied the trained decoders to the control resting state and the post-learning resting state, expecting replay of sequences to occur during post-learning resting state. The result (a probability estimate of each 10 images/classes for each time point of the resting state) was fed into TDLM to detect sequentiality of reactivations. However, we found <strong>no forward or backward sequenceness</strong> within either 8-minute resting state</p>
       <figure>
         <img src="./images/sequenceness-rs.png" alt="Sequenceness curves" style="max-width:100%">
         <figcaption>Figure 2. Forward (orange) and backward (green) sequenceness traces stay within the permutation confidence envelope for both control and post-learning resting state.</figcaption>
@@ -321,69 +321,60 @@ learning but needed to learn triplets/surrounding. Participants never
     <!-- Simulated replay subsection -->
     <div class="content">
       <h3 class="title is-4 is-centered has-text-centered">Simulated Replay Insertion</h3>
-      <p>We extracted activity patterns for each item by creating the average ERP of each item and subtracted the ERP of all other items. Using this process we were able to get the <strong>subtle item-specific pattern</strong> minus the visual evoked potential that is common to general visual processing. We inserted these momentary patterns (each spanning ~10 ms) into the control resting state.</p>
+      <p>We extracted activity patterns for each item by creating the average ERP of each item and subtraced the ERP of all other items. Using this process we were able to get the <strong>subtle item-specific pattern</strong> minus the visual evoked potential that is common to general visual processing. We inserted these momentary patterns (each spanning ~10 ms) into the control resting state.</p>
       <figure>
         <img src="./images/schematic-simulation.png" alt="Replay insertion schematic" style="max-width:100%">
-        <figcaption>Figure 3. Schematic of replay event generation and embedding into MEG data.</figcaption>
+        <figcaption><em>Figure&nbsp;3.</em> Schematic of replay event generation and embedding into MEG data.</figcaption>
       </figure>
     </div>
 
     <!-- Implausible rates subsection -->
     <div class="content">
       <h3 class="title is-4 is-centered has-text-centered">Implausibly High Replay Rates Required</h3>
-      <p>Next we varied the amount of replay that was inserted into the resting state, from zero up to 200 events per minute.
-      TDLM reached 95% detection power only when replay density exceeded <strong>&ge;80 events per minute</strong> (&approx;1.3&nbsp;Hz)&mdash;an order of magnitude above hippocampal sharp-wave ripple rates (usually ~2&ndash;3 per minute, reported up to 20 events per minute).</p>
+      <p>Next we varied the amount of replay that was inserted into the resting state. We started with a baseline of zero replay events and scaled up to a normalized "replay rate" of 200 events per minute, where each "event" was defined as a transition of A->B.
+	  
+	  TDLM reached 95% detection power only when replay density exceeded <strong>≥80 events per minute</strong> (≈1.3&nbsp;Hz)—an order of magnitude above hippocampal sharp‑wave ripple rates (usually ~2–3 min per minute, reported up to 20 events per minute).</p>
       <figure>
         <img src="./images/simulation-results.png" alt="Power curve vs replay rate" style="max-width:100%">
-        <figcaption>Figure 4. Left: Statistical significance of TDLM as a function of injected replay rate. Only with 80 events per minute significance can be reached, more stringent criteria only at 150 events per minute. Right: 4 sample curves for density of 0, 40, 80 and 120 events per minute.</figcaption>
+        <figcaption>Figure 4. Left: Statistical significance of TDLM as a function of injected replay rate. Only with 80 events per minute significance can be reached, more stringend criterias only at 150 events per minute. Right: 4 sample curves for density of 0, 40, 80 and 120 events per minute</figcaption>
       </figure>
     </div>
 
     <!-- Correlation subsection -->
     <div class="content">
-      <h3 class="title is-4 is-centered has-text-centered">Behaviour &ne; Sequenceness</h3>
-      <p>Some studies correlate sequenceness measures with behavioural measures. We simulated this dependency by scaling replay counts with each participant's retrieval performance. However, this produced <strong>no reliable correlation</strong>. The fluctuation between participants' baseline scores was already higher than any induced effect.</p>
+      <h3 class="title is-4 is-centered has-text-centered">Behaviour ≠ Sequenceness</h3>
+      <p>Some studies correlate sequenceness measures with behavioural measures. We simulated this dependency by scaling replay counts with each participant’s retrieval performance. However, this produced <strong>no reliable correlation</strong>. present, TDLM failed to track individual memory strength, as the fluctuation between participants baseline scores was already higher than any induced effect.</p>
       <figure>
         <img src="./images/correlation.png" alt="Correlation scatter" style="max-width:100%">
-        <figcaption>Figure 5. Left: When inserting more replay for participants with lower memory performance (green), no correlation can be induced. Only when maximizing the scaling rule (blue) and inserting no replay for the best and maximum replay for the worst participants, correlations are found at 200 events per minute. Right: Even in the baseline condition (with no replay inserted), the correlation fluctuates significantly based upon which time point is used for its computation.</figcaption>
+        <figcaption>Figure 5. Left: When inserting more replay for participants with lower memory performance (green), no correlation can be induced. Only when maximizing the scaling rule (blue) and inserting no replay for the best and maximum replay for the worst participants, correlations are found at 200 events per minute. Right: Even in the baseline condition (with no replay inserted), the correlation fluctuates significantly based upon which time point is used for it's computation.</figcaption>
       </figure>
     </div>
 
-    <!-- Previous Simulation Work -->
+<!-- ================= Previous Simulation Work ================= -->
     <div class="content">
-      <h3 class="title is-4 is-centered has-text-centered">Previous Simulations Overestimate Replay</h3>
-      <p>Previously <a href="https://github.com/YunzheLiu/TDLM">TDLM simulations</a> often demonstrated significant sequenceness by injecting <strong>2000&ndash;2400 events per minute</strong>, two orders of magnitude above in-vivo estimates. Our replication of these defaults confirms that such extreme densities virtually guarantee significance, potentially setting unrealistic expectations for empirical work. Indeed, when using the original simulation code and injecting a more realistic estimate of 15 events per minute, significance is barely reached.</p>
+	    <h3 class="title is-4 is-centered has-text-centered">Previous Simulations Overestimate Replay</h2>
+      <p>Previously <a href="https://github.com/YunzheLiu/TDLM">TDLM simulations</a> often demonstrated significant sequenceness by injecting <strong>2000–2400 events per minute</strong>, two orders of magnitude above in-vivo estimates. Our replication of these defaults confirms that such extreme densities virtually guarantee significance, potentially setting unrealistic expectations for empirical work. Indeed, when using the original simulation code and injecting a more realistic estimate of 15 events per minute, significance is barely reached. In the original study, purely synthetic data is used to simulate replay. We argue that our approach approximates naturalistic conditions more closely.</p>
       <figure>
         <img src="./images/tdlm-sim.png" alt="Legacy simulation outcomes" style="max-width:100%">
-        <figcaption>Figure 6. Upper: Legacy simulations with 2000 events per minute. Lower: The same code run with more realistic estimate of 15 events per minute barely reaches significance.</figcaption>
+        <figcaption><em>Figure 6.</em> Upper: Legacy simulations (above) with 2000 events per minute. Lower: The same code run with more realistic estimate of 15 events per minute barely reaches significance.</figcaption>
       </figure>
-    </div>
+  </div>
 
-    <!-- Pattern Discriminability -->
-    <div class="content">
-      <h3 class="title is-4 is-centered has-text-centered">Pattern Discriminability Explains the Difference</h3>
-      <p>To understand this difference, we compared decoder output distributions when a true pattern was present. Pattern discriminability was <strong>lowest in the empirical localizer</strong>, <strong>intermediate in the hybrid simulation</strong>, and <strong>highest in the synthetic simulation</strong>. Greater discriminability lead to more extreme classifier outputs, inflating sequenceness. This highlights the necessitiy to simulate under realistic conditions.</p>
-      <figure>
-        <img src="./images/discriminability.png" alt="Pattern discriminability analysis" style="max-width:100%">
-        <figcaption>Figure 7. Left: Classifier probability distributions for localizer, hybrid, and synthetic simulation. Middle: Wasserstein distance per participant across conditions. Right: Sequenceness increases with better pattern discriminability.</figcaption>
-      </figure>
-    </div>
-
-    <!-- Conclusion and Recommendations -->
-    <div class="content">
-      <h2 class="title is-3 is-centered has-text-centered">Conclusion and Recommendation</h2>
-	<p>In our study we showed that TDLM was not able to detect replay in our experimental setup. Using a hybrid simulation approach we varied the amount of replay and found that implausible rates would be necessary for detection. However, in certain contexts TDLM should nevertheless work well (e.g. limited search windows). To be applicable to longer search windows (e.g. sleep &amp; resting state), methodological improvements need to be implemented and verified.</p>
+<!-- ================= Recommendations ================= -->
+  <div class="container is-max-desktop">
+    <h2 class="title is-3 is-centered has-text-centered">Conclusion and Recommendation</h2>
+	<p>In our study we showed that TDLM was not able to detect replay in our experimental setup. Using a hybrid simulation approach we varied the amount of replay and found that implausible rates would be necessary for detection. However, in certain contexts TDLM should nevertheless work well (e.g. limited search windows). To be applicable to longer search windows (eg sleep & resting state), methodological improvements need to be implemented and verified.</p>
 	<br>
 	Additionally, we give the following recommendations for future replay studies:
-      <ul>
-        <li>Anchor and report replay-rate priors to SWR literature (&le;20 events min<sup>&minus;1</sup>).</li>
-        <li>Simulate if replay rates indicated by TDLM results can be reliably found.</li>
-        <li>Preregister temporal windows and decoder normalisation choices.</li>
-        <li>Run multiverse analyses to reveal parameter dependencies.</li>
-        <li>Subselect ROIs of few seconds for realistic detection, e.g. locked to oscillations.</li>
-        <li>Verify if classifiers transfer to other sensory modalities.</li>
-      </ul>
-    </div>
+    <ul">
+      <li>Anchor and report replay-rate priors to SWR literature (≤20 events min<sup>−1</sup>).</li>
+      <li>Simulate if replay rates indicated by TDLM results can be reliably found</li>
+      <li>Preregister temporal windows and decoder normalisation choices.</li>
+      <li>Run multiverse analyses to reveal parameter dependencies.</li>
+	  <li>Subselect ROIs of few seconds for realistic detection, e.g. locked to oscillations</li>
+	  <li>Verify if classifiers transfer to other sensory modalities</li>
+
+    </ul>
   </div>
 </section>
 
@@ -395,7 +386,7 @@ learning but needed to learn triplets/surrounding. Participants never
       <div class="column is-8">
         <div class="content">
           <p>
-            This page was built using the <a href="https://github.com/eliahuhorwitz/Academic-project-page-template" target="_blank">Academic Project Page Template</a> which was adopted from the <a href="https://nerfies.github.io" target="_blank">Nerfies</a> project page.
+            This page was built using the <a href="https://github.com/eliahuhorwitz/Academic-project-page-template" target="_blank">Academic Project Page Template</a> which was adopted from the <a href="https://nerfies.github.io" target="_blank">Nerfies</a> project page.
             You are free to borrow the source code of this website, we just ask that you link back to this page in the footer. <br> This website is licensed under a <a rel="license"  href="http://creativecommons.org/licenses/by-sa/4.0/" target="_blank">Creative
             Commons Attribution-ShareAlike 4.0 International License</a>.
           </p>
@@ -407,7 +398,7 @@ learning but needed to learn triplets/surrounding. Participants never
 </footer>
 
 <!-- Statcounter tracking code -->
-
+  
 <!-- You can add a tracker to track page visits by creating an account at statcounter.com -->
 
     <!-- End of Statcounter Code -->
